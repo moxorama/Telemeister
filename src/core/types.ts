@@ -1,5 +1,5 @@
-import type { AppStates } from "./app-states";
-import { BotBuilder } from "./builder";
+import type { AppStates } from "./app-states.js";
+import { BotBuilder } from "./builder.js";
 
 /**
  * Core Types for Telemeister

@@ -1,12 +1,12 @@
 # Telemeister
 
-A TypeScript Telegram Bot Boilerplate with XState-powered Finite State Machines (FSM), Prisma ORM for persistence, and a type-safe builder pattern for defining conversation flows.
+A TypeScript Telegram Bot Boilerplate with XState-powered Finite State Machines (FSM), Drizzle ORM for persistence, and a type-safe builder pattern for defining conversation flows.
 
 ## Features
 
 - **XState FSM**: Compact, maintainable state machines using XState's "states as data" pattern
 - **Type-Safe State Transitions**: Full TypeScript support with typed state returns
-- **Prisma ORM**: Database-agnostic persistence with SQLite (easily switchable to PostgreSQL/MySQL)
+- **Drizzle ORM**: Database-agnostic persistence with SQLite and MySQL support
 - **Builder Pattern**: Fluent API for defining state handlers
 - **Dual Mode**: Supports both Polling and Webhook modes
 - **CLI Tools**: Built-in commands for managing states and webhooks
@@ -32,23 +32,31 @@ API_ID=your_api_id          # From https://my.telegram.org/apps
 API_HASH=your_api_hash      # From https://my.telegram.org/apps
 BOT_TOKEN=your_bot_token    # From @BotFather
 
-# Database (Prisma)
-DATABASE_URL="file:./prisma/dev.db"  # SQLite (default)
-# DATABASE_URL="postgresql://user:password@localhost:5432/telemeister"  # PostgreSQL
-# DATABASE_URL="mysql://user:password@localhost:3306/telemeister"      # MySQL
+# Database Provider: 'sqlite' or 'mysql'
+DATABASE_PROVIDER=sqlite
+
+# SQLite Configuration (default)
+DATABASE_URL="file:./dev.db"
+
+# MySQL Configuration (uncomment if using MySQL)
+# DATABASE_HOST=localhost
+# DATABASE_PORT=3306
+# DATABASE_USER=root
+# DATABASE_PASSWORD=your_password
+# DATABASE_NAME=telemeister
 ```
 
 ### 3. Database Setup
 
+**SQLite (default):**
 ```bash
-npx prisma generate   # Generate Prisma client
-npx prisma db push    # Push schema to database (SQLite)
+npm run db:migrate:sqlite   # Run SQLite migrations
 ```
 
-For production with migrations:
+**MySQL:**
 ```bash
-npm run db:generate -- init   # Create initial migration
-npm run db:migrate            # Deploy migrations
+# Ensure MySQL is running and DATABASE_* variables are set
+npm run db:migrate:mysql    # Run MySQL migrations
 ```
 
 ### 4. Run the Bot
@@ -85,7 +93,12 @@ src/
 │   ├── welcome.ts         # Welcome state
 │   └── menu.ts            # Menu state
 └── database/              # Database layer
-    └── index.ts           # Prisma client and queries
+    ├── index.ts           # Database functions and exports
+    ├── connection.ts      # Database connection management
+    ├── schema.ts          # Drizzle schema definitions
+    └── migrations/        # SQL migration files
+        ├── sqlite/
+        └── mysql/
 ```
 
 ## Creating States

@@ -4,7 +4,7 @@ import type {
   EnterHandler,
   ResponseHandler,
   StateHandlers,
-} from "./types";
+} from "./types.js";
 
 /**
  * State Builder - Fluent API for configuring a single state
@@ -241,4 +241,4 @@ export type {
   BotState,
   EnterHandler,
   ResponseHandler,
-} from "./types";
+} from "./types.js";

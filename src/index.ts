@@ -1,7 +1,7 @@
 import "dotenv/config";
-import { config, validateConfig } from "./config";
-import { startPollingMode } from "./bot/polling";
-import { startWebhookMode } from "./bot/webhook";
+import { config, validateConfig } from "./config.js";
+import { startPollingMode } from "./bot/polling.js";
+import { startWebhookMode } from "./bot/webhook.js";
 
 // Import state handlers (registers all handlers with the builder)
 import "./handlers";

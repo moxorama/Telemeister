@@ -1,16 +1,15 @@
 import express, { Request, Response } from "express";
-import { TelegramClient } from "telegram";
-import { StringSession } from "telegram/sessions";
-import { Api } from "telegram/tl";
+import { TelegramClient, sessions, Api } from "telegram";
+const { StringSession } = sessions;
 import { createActor } from "xstate";
-import { compactMachine } from "../core/compact-machine";
-import { botBuilder } from "../core";
+import { compactMachine } from "../core/compact-machine.js";
+import { botBuilder } from "../core/index.js";
 import {
   getUserByTelegramId,
   createOrUpdateUser,
   updateUserState,
-} from "../database";
-import type { BotHandlerContext } from "../core";
+} from "../database.js";
+import type { BotHandlerContext } from "../core/types.js";
 
 /**
  * Telegram Update type (simplified)
@@ -214,7 +213,7 @@ async function processUpdate(
 
   // Parse state data from user info
   const userStateData: Record<string, unknown> = user.info?.stateData
-    ? JSON.parse(user.info.stateData)
+    ? JSON.parse(user.info.stateData as string)
     : {};
 
   // Create XState actor for this user

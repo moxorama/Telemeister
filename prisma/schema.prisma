@@ -2,35 +2,28 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  telegramId   Int      @unique @map("telegram_id")
-  chatId       Int      @map("chat_id")
-  currentState String   @default("idle") @map("current_state")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id           Int       @id @default(autoincrement())
+  telegramId   Int       @unique
+  chatId       Int
+  currentState String    @default("idle")
+  updatedAt    DateTime  @updatedAt
+  info         UserInfo?
 
-  info UserInfo?
-
-  @@index([telegramId])
   @@index([currentState])
-  @@map("users")
 }
 
 model UserInfo {
   id        Int    @id @default(autoincrement())
-  userId    Int    @unique @map("user_id")
-  stateData String @default("{}") @map("state_data")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("user_info")
+  userId    Int    @unique
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stateData String @default("{}")
 }

@@ -1,4 +1,4 @@
-import { appBuilder, type AppContext } from "../core";
+import { appBuilder, type AppContext } from "../core/index.js";
 
 /**
  * welcome State Handler

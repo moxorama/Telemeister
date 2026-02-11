@@ -2,6 +2,7 @@
   "name": "telemeister",
   "version": "0.0.1",
   "description": "TypeScript Telegram Bot Boilerplate with XState",
+  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -24,11 +25,11 @@
     "dev:webhook": "BOT_MODE=webhook tsx src/index.ts",
     "start": "node dist/index.js",
     "start:webhook": "BOT_MODE=webhook node dist/index.js",
-    "db:generate": "prisma migrate dev --name",
-    "db:migrate": "prisma migrate deploy",
-    "db:studio": "prisma studio",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
-    "postinstall": "prisma generate",
+    "db:studio": "prisma studio",
     "webhook:set": "tsx scripts/set-webhook.ts",
     "webhook:delete": "tsx scripts/delete-webhook.ts",
     "webhook:info": "tsx scripts/webhook-info.ts",
@@ -47,17 +48,21 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@prisma/client": "^6.0.0",
+    "@prisma/adapter-better-sqlite3": "^7.0.0",
+    "@prisma/adapter-mariadb": "^7.0.0",
+    "better-sqlite3": "^12.6.2",
+    "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "input": "^1.0.1",
+    "mariadb": "^3.4.0",
     "telegram": "^2.26.22",
     "xstate": "^5.25.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.0",
     "@types/node": "^25.0.6",
-    "dotenv": "^16.4.7",
-    "prisma": "^6.0.0",
+    "prisma": "^7.0.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

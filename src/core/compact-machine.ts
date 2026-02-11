@@ -1,5 +1,5 @@
 import { setup, createMachine, assign } from "xstate";
-import type { BotContext, BotEvent, BotMachineInput } from "./types";
+import type { BotContext, BotEvent, BotMachineInput } from "./types.js";
 
 /**
  * Compact XState Machine for Telemeister

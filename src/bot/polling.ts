@@ -1,15 +1,15 @@
-import { TelegramClient } from "telegram";
-import { StringSession } from "telegram/sessions";
-import { NewMessageEvent } from "telegram/events";
+import { TelegramClient, sessions } from "telegram";
+const { StringSession } = sessions;
+import type { NewMessageEvent } from "telegram/events/NewMessage.js";
 import { createActor } from "xstate";
-import { compactMachine } from "../core/compact-machine";
-import { botBuilder } from "../core";
+import { compactMachine } from "../core/compact-machine.js";
+import { botBuilder } from "../core/index.js";
 import {
   getUserByTelegramId,
   createOrUpdateUser,
   updateUserState,
-} from "../database";
-import type { BotHandlerContext } from "../core";
+} from "../database.js";
+import type { BotHandlerContext } from "../core/types.js";
 
 /**
  * Start the bot in polling mode
@@ -98,7 +98,7 @@ async function handleUserMessage(
 
   // Parse state data from user info
   const userStateData: Record<string, unknown> = user.info?.stateData
-    ? JSON.parse(user.info.stateData)
+    ? JSON.parse(user.info.stateData as string)
     : {};
 
   // Create XState actor for this user
