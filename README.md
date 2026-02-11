@@ -1,12 +1,15 @@
 # Telemeister
 
-A TypeScript Telegram Bot Boilerplate with XState-powered Finite State Machines (FSM), Drizzle ORM for persistence, and a type-safe builder pattern for defining conversation flows.
+A TypeScript Telegram Bot Boilerplate with XState-powered Finite State Machines (FSM), Prisma ORM for persistence, and a type-safe builder pattern for defining conversation flows.
+
+**Goal**: Build bot infrastructure with explicit structure that allows an LLM to build and verify bots from text descriptions, and detect inconsistencies in those descriptions.
 
 ## Features
 
 - **XState FSM**: Compact, maintainable state machines using XState's "states as data" pattern
 - **Type-Safe State Transitions**: Full TypeScript support with typed state returns
-- **Drizzle ORM**: Database-agnostic persistence with SQLite and MySQL support
+- **Prisma ORM 7.x**: Modern database toolkit with driver adapters for SQLite and MySQL
+- **Single Schema**: One Prisma schema works for both SQLite (dev) and MySQL (production)
 - **Builder Pattern**: Fluent API for defining state handlers
 - **Dual Mode**: Supports both Polling and Webhook modes
 - **CLI Tools**: Built-in commands for managing states and webhooks
@@ -32,31 +35,28 @@ API_ID=your_api_id          # From https://my.telegram.org/apps
 API_HASH=your_api_hash      # From https://my.telegram.org/apps
 BOT_TOKEN=your_bot_token    # From @BotFather
 
-# Database Provider: 'sqlite' or 'mysql'
-DATABASE_PROVIDER=sqlite
-
-# SQLite Configuration (default)
+# Database Configuration
+# For SQLite (development):
 DATABASE_URL="file:./dev.db"
 
-# MySQL Configuration (uncomment if using MySQL)
-# DATABASE_HOST=localhost
-# DATABASE_PORT=3306
-# DATABASE_USER=root
-# DATABASE_PASSWORD=your_password
-# DATABASE_NAME=telemeister
+# For MySQL (production):
+# DATABASE_URL="mysql://user:password@localhost:3306/dbname"
 ```
 
 ### 3. Database Setup
 
-**SQLite (default):**
+**Generate Prisma Client:**
 ```bash
-npm run db:migrate:sqlite   # Run SQLite migrations
+npm run db:generate
 ```
 
-**MySQL:**
+**Run Migrations:**
 ```bash
-# Ensure MySQL is running and DATABASE_* variables are set
-npm run db:migrate:mysql    # Run MySQL migrations
+# Development (SQLite)
+npm run db:migrate
+
+# Production (MySQL) - after updating DATABASE_URL
+npm run db:deploy
 ```
 
 ### 4. Run the Bot
@@ -92,13 +92,48 @@ src/
 │   ├── index.ts           # Handler imports
 │   ├── welcome.ts         # Welcome state
 │   └── menu.ts            # Menu state
-└── database/              # Database layer
-    ├── index.ts           # Database functions and exports
-    ├── connection.ts      # Database connection management
-    ├── schema.ts          # Drizzle schema definitions
-    └── migrations/        # SQL migration files
-        ├── sqlite/
-        └── mysql/
+├── database.ts            # Database functions (Prisma)
+└── generated/prisma/      # Generated Prisma Client
+prisma/
+├── schema.prisma          # Database schema (single source of truth)
+├── config.ts              # Prisma configuration
+└── migrations/            # Migration files
+```
+
+## Database Configuration
+
+### Switching Between SQLite and MySQL
+
+**1. Update `prisma/schema.prisma`:**
+```prisma
+datasource db {
+  provider = "sqlite"  // Change to "mysql" for production
+}
+```
+
+**2. Update `.env`:**
+```bash
+# SQLite (development)
+DATABASE_URL="file:./dev.db"
+
+# MySQL (production)
+DATABASE_URL="mysql://user:password@localhost:3306/dbname"
+```
+
+**3. Regenerate and migrate:**
+```bash
+npm run db:generate
+npm run db:migrate
+```
+
+### Database Commands
+
+```bash
+npm run db:generate    # Generate Prisma Client after schema changes
+npm run db:migrate     # Create and apply migrations (development)
+npm run db:deploy      # Apply migrations in production
+npm run db:push        # Push schema changes without migration files
+npm run db:studio      # Open Prisma Studio (database GUI)
 ```
 
 ## Creating States
@@ -119,7 +154,7 @@ This command:
 Edit the generated file:
 
 ```typescript
-import { appBuilder, type AppContext } from "../core";
+import { appBuilder, type AppContext } from "../core/index.js";
 
 appBuilder
   .forState("collectName")
@@ -199,7 +234,7 @@ interface BotHandlerContext<TState> {
 ### Full Type Safety with AppStates
 
 ```typescript
-import { appBuilder, type AppContext } from "../core";
+import { appBuilder, type AppContext } from "../core/index.js";
 
 appBuilder
   .forState("welcome")
@@ -214,7 +249,7 @@ appBuilder
 ### Untyped Option (Quick Prototyping)
 
 ```typescript
-import { BotBuilder } from "../core";
+import { BotBuilder } from "../core/index.js";
 
 const untypedBuilder = new BotBuilder();
 untypedBuilder.forState("anyState").onEnter(...); // No type checking
@@ -239,7 +274,29 @@ Users are persisted with:
 - `telegramId` - Telegram user ID
 - `chatId` - Telegram chat ID
 - `currentState` - Current FSM state
-- `stateData` - JSON data storage for user context (in separate `user_info` table)
+- `stateData` - JSON data storage for user context (in separate `userInfo` relation)
+
+### Prisma Schema
+
+```prisma
+model User {
+  id           Int       @id @default(autoincrement())
+  telegramId   Int       @unique
+  chatId       Int
+  currentState String    @default("idle")
+  updatedAt    DateTime  @updatedAt
+  info         UserInfo?
+
+  @@index([currentState])
+}
+
+model UserInfo {
+  id        Int    @id @default(autoincrement())
+  userId    Int    @unique
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stateData String @default("{}")
+}
+```
 
 ## Architecture
 
@@ -288,6 +345,15 @@ states: {
 ```
 
 The actual state value is stored in `context.currentState`. The builder pattern is the source of truth for valid states.
+
+## Prisma 7.x Features
+
+This project uses Prisma ORM 7.x with:
+
+- **Driver Adapters**: Required adapters for database connections (`@prisma/adapter-better-sqlite3`, `@prisma/adapter-mariadb`)
+- **ESM-Only**: Native ES module support
+- **Generated Client in Source**: Better IDE support and file watching
+- **Separate Config**: Database URL in `prisma.config.ts`, schema in `schema.prisma`
 
 ## License
 
