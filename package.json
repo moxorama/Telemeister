@@ -53,9 +53,8 @@
     "better-sqlite3": "^12.6.2",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "input": "^1.0.1",
+    "grammy": "^1.35.1",
     "mariadb": "^3.4.0",
-    "telegram": "^2.26.22",
     "xstate": "^5.25.0"
   },
   "devDependencies": {

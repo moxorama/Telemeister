@@ -1,139 +1,173 @@
+/**
+ * Grammy-based Webhook Mode Implementation
+ *
+ * Uses Grammy Bot API library with Express for webhook handling.
+ */
+
 import express, { Request, Response } from "express";
-import { TelegramClient, sessions, Api } from "telegram";
-const { StringSession } = sessions;
-import { createActor } from "xstate";
-import { compactMachine } from "../core/compact-machine.js";
-import { botBuilder } from "../core/index.js";
+import { Bot, session, webhookCallback, type Context } from "grammy";
+import type { AppStates } from "../core/app-states.js";
+import { appBuilder } from "../core/index.js";
 import {
-  getUserByTelegramId,
-  createOrUpdateUser,
-  updateUserState,
-} from "../database.js";
+  PrismaSessionAdapter,
+  getOrCreateSession,
+  type SessionData,
+} from "./session.js";
 import type { BotHandlerContext } from "../core/types.js";
 
-/**
- * Telegram Update type (simplified)
- */
-interface TelegramUpdate {
-  update_id: number;
-  message?: {
-    message_id: number;
-    from?: {
-      id: number;
-      is_bot?: boolean;
-    };
-    chat?: {
-      id: number;
-    };
-    text?: string;
-  };
+// Extend Grammy context with our custom properties
+interface BotContext extends Context {
+  session: SessionData;
 }
 
-interface TelegramApiResponse {
-  ok: boolean;
-  description?: string;
-  result?: unknown;
+/**
+ * Create and configure the Grammy bot (shared with polling)
+ */
+export function createBot(botToken: string): Bot<BotContext> {
+  const bot = new Bot<BotContext>(botToken);
+
+  // Install session middleware with Prisma adapter
+  bot.use(
+    session({
+      initial: (): SessionData => ({
+        currentState: "idle",
+        stateData: {},
+      }),
+      storage: new PrismaSessionAdapter(),
+      getSessionKey: (ctx) => ctx.from?.id.toString(),
+    }),
+  );
+
+  // Ensure user exists in database on each update
+  bot.use(async (ctx, next) => {
+    if (!ctx.from || !ctx.chat) {
+      return next();
+    }
+
+    const telegramId = ctx.from.id;
+    const chatId = ctx.chat.id;
+
+    // Get or create user session
+    const userSession = await getOrCreateSession(telegramId, chatId);
+    ctx.session = userSession;
+
+    return next();
+  });
+
+  // Handle text messages
+  bot.on("message:text", async (ctx) => {
+    const text = ctx.message.text;
+    const session = ctx.session;
+
+    // Create handler context compatible with existing handlers
+    const handlerContext = createHandlerContext(ctx, session);
+
+    // Execute onResponse handler for current state
+    const nextState = await appBuilder.executeOnResponse(
+      session.currentState as AppStates,
+      handlerContext,
+      text,
+    );
+
+    // Handle state transition
+    if (nextState && nextState !== session.currentState) {
+      await transitionToState(
+        ctx,
+        session,
+        nextState as AppStates,
+        handlerContext,
+      );
+    } else {
+      // Save any state data changes
+      session.stateData =
+        handlerContext.getData<Record<string, unknown>>("__all") ||
+        session.stateData;
+    }
+  });
+
+  // Handle /start command
+  bot.command("start", async (ctx) => {
+    const session = ctx.session;
+
+    // Create handler context
+    const handlerContext = createHandlerContext(ctx, session);
+
+    // Transition to welcome state
+    await transitionToState(ctx, session, "welcome", handlerContext);
+  });
+
+  return bot;
 }
 
 /**
  * Start the bot in webhook mode
- * This mode uses an HTTP server to receive updates from Telegram
  *
+ * @param botToken - Telegram bot token
  * @param webhookUrl - Public URL where Telegram will send updates
  * @param port - Port to listen on
  */
 export async function startWebhookMode(
+  botToken: string,
   webhookUrl: string,
   port: number,
 ): Promise<void> {
-  const apiId = parseInt(process.env.API_ID || "0");
-  const apiHash = process.env.API_HASH || "";
-  const botToken = process.env.BOT_TOKEN || "";
-  const sessionString = process.env.SESSION_STRING || "";
-
-  if (!apiId || !apiHash || !botToken) {
-    throw new Error(
-      "Missing required environment variables: API_ID, API_HASH, BOT_TOKEN",
-    );
-  }
-
-  // Create Telegram client
-  const client = new TelegramClient(
-    new StringSession(sessionString),
-    apiId,
-    apiHash,
-    { connectionRetries: 5 },
-  );
-
-  await client.connect();
-
-  // Set webhook using raw API
-  await setWebhook(client, botToken, webhookUrl);
+  const bot = createBot(botToken);
 
   // Create Express app
   const app = express();
-  app.use(express.json());
 
   // Health check endpoint
   app.get("/health", (_req: Request, res: Response) => {
-    res.json({ status: "ok", mode: "webhook" });
+    res.json({
+      status: "ok",
+      mode: "webhook",
+      timestamp: new Date().toISOString(),
+    });
   });
 
-  // Webhook endpoint
-  app.post("/webhook", async (req: Request, res: Response) => {
-    const update: TelegramUpdate = req.body;
-
-    // Respond immediately to Telegram
-    res.sendStatus(200);
-
-    // Process update asynchronously
-    try {
-      await processUpdate(client, update);
-    } catch (error) {
-      console.error("Error processing update:", error);
-    }
-  });
+  // Set up webhook endpoint using Grammy's webhookCallback
+  // This handles the Telegram update parsing automatically
+  app.use("/webhook", webhookCallback(bot, "express"));
 
   // Start server
-  app.listen(port, () => {
+  app.listen(port, async () => {
     console.log(`🤖 Bot started in webhook mode`);
     console.log(`📡 Webhook URL: ${webhookUrl}`);
     console.log(`🖥️  Server listening on port ${port}`);
+
+    // Set webhook with Telegram
+    try {
+      await bot.api.setWebhook(webhookUrl, {
+        allowed_updates: ["message"],
+      });
+      console.log("✅ Webhook set successfully with Telegram");
+    } catch (error) {
+      console.error("❌ Failed to set webhook:", error);
+      throw error;
+    }
   });
 }
 
 /**
- * Set webhook using Telegram Bot API
+ * Set webhook URL manually (for scripts)
  */
-async function setWebhook(
-  client: TelegramClient,
+export async function setWebhook(
   botToken: string,
   webhookUrl: string,
 ): Promise<void> {
-  try {
-    // Use the raw Bot API to set webhook
-    const response = await fetch(
-      `https://api.telegram.org/bot${botToken}/setWebhook`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: webhookUrl,
-          allowed_updates: ["message"],
-        }),
-      },
-    );
+  const bot = new Bot(botToken);
 
-    const result = (await response.json()) as TelegramApiResponse;
-    if (result.ok) {
-      console.log("✅ Webhook set successfully");
-    } else {
-      console.error("❌ Failed to set webhook:", result.description);
-      throw new Error(`Failed to set webhook: ${result.description}`);
-    }
+  try {
+    await bot.api.setWebhook(webhookUrl, {
+      allowed_updates: ["message"],
+    });
+    console.log("✅ Webhook set successfully");
   } catch (error) {
-    console.error("Error setting webhook:", error);
+    console.error("❌ Failed to set webhook:", error);
     throw error;
+  } finally {
+    // Don't start the bot, just set the webhook
+    await bot.api.deleteWebhook({ drop_pending_updates: true });
   }
 }
 
@@ -141,22 +175,13 @@ async function setWebhook(
  * Delete webhook (stop receiving updates)
  */
 export async function deleteWebhook(botToken: string): Promise<void> {
-  try {
-    const response = await fetch(
-      `https://api.telegram.org/bot${botToken}/deleteWebhook`,
-      {
-        method: "POST",
-      },
-    );
+  const bot = new Bot(botToken);
 
-    const result = (await response.json()) as TelegramApiResponse;
-    if (result.ok) {
-      console.log("✅ Webhook deleted successfully");
-    } else {
-      console.error("❌ Failed to delete webhook:", result.description);
-    }
+  try {
+    await bot.api.deleteWebhook({ drop_pending_updates: true });
+    console.log("✅ Webhook deleted successfully");
   } catch (error) {
-    console.error("Error deleting webhook:", error);
+    console.error("❌ Failed to delete webhook:", error);
     throw error;
   }
 }
@@ -165,12 +190,11 @@ export async function deleteWebhook(botToken: string): Promise<void> {
  * Get webhook info
  */
 export async function getWebhookInfo(botToken: string): Promise<unknown> {
+  const bot = new Bot(botToken);
+
   try {
-    const response = await fetch(
-      `https://api.telegram.org/bot${botToken}/getWebhookInfo`,
-    );
-    const result = await response.json();
-    return result;
+    const info = await bot.api.getWebhookInfo();
+    return info;
   } catch (error) {
     console.error("Error getting webhook info:", error);
     throw error;
@@ -178,141 +202,76 @@ export async function getWebhookInfo(botToken: string): Promise<unknown> {
 }
 
 /**
- * Process a single Telegram update
+ * Create a handler context compatible with existing handlers
  */
-async function processUpdate(
-  client: TelegramClient,
-  update: TelegramUpdate,
-): Promise<void> {
-  const message = update.message;
-  if (!message || !message.text) return;
+function createHandlerContext(
+  ctx: BotContext,
+  session: SessionData,
+): BotHandlerContext<AppStates> {
+  // Local state data copy for modifications
+  const localStateData = { ...session.stateData };
 
-  // Skip messages from bots
-  if (message.from?.is_bot) return;
+  return {
+    userId: session.userId || 0,
+    telegramId: ctx.from?.id || 0,
+    chatId: ctx.chat?.id || 0,
+    currentState: session.currentState as AppStates,
 
-  const telegramId = message.from?.id || 0;
-  const chatId = message.chat?.id || 0;
-  const text = message.text;
-
-  if (!telegramId || !chatId) {
-    console.warn("Missing telegramId or chatId");
-    return;
-  }
-
-  // Get or create user from database
-  let user = await getUserByTelegramId(telegramId);
-  if (!user) {
-    user = await createOrUpdateUser({
-      telegramId,
-      chatId,
-      currentState: "idle",
-      stateData: {},
-    });
-    console.log(`[Bot] New user created: ${telegramId}`);
-  }
-
-  // Parse state data from user info
-  const userStateData: Record<string, unknown> = user.info?.stateData
-    ? JSON.parse(user.info.stateData as string)
-    : {};
-
-  // Create XState actor for this user
-  const actor = createActor(compactMachine, {
-    input: {
-      userId: user.id,
-      telegramId: user.telegramId,
-      chatId: user.chatId,
-      currentState: user.currentState,
-      stateData: userStateData,
+    send: async (text: string) => {
+      await ctx.reply(text, { parse_mode: "Markdown" });
     },
-  });
 
-  actor.start();
-
-  // Track state data changes
-  const stateData = { ...userStateData };
-
-  // Create bot context for handlers
-  const context: BotHandlerContext = {
-    userId: user.id,
-    telegramId: user.telegramId,
-    chatId: user.chatId,
-    currentState: user.currentState,
-    send: async (msg: string) => {
-      await sendMessage(client, process.env.BOT_TOKEN || "", chatId, msg);
-    },
     setData: <T>(key: string, value: T) => {
-      stateData[key] = value;
+      localStateData[key] = value;
     },
-    getData: <T>(key: string): T | undefined => stateData[key] as T,
-    transition: async (toState: string) => {
-      actor.send({ type: "TRANSITION", toState });
+
+    getData: <T>(key: string): T | undefined => {
+      if (key === "__all") {
+        return localStateData as T;
+      }
+      return localStateData[key] as T | undefined;
+    },
+
+    transition: async (toState: AppStates) => {
+      await transitionToState(
+        ctx,
+        session,
+        toState,
+        createHandlerContext(ctx, session),
+      );
     },
   };
-
-  // Execute onResponse handler for current state
-  const responseNextState = await botBuilder.executeOnResponse(
-    user.currentState,
-    context,
-    text,
-  );
-
-  // If handler returned a state, transition to it
-  if (responseNextState && responseNextState !== user.currentState) {
-    await updateUserState(telegramId, responseNextState, stateData);
-    context.currentState = responseNextState;
-
-    // Execute onEnter for the new state
-    const enterNextState = await botBuilder.executeOnEnter(
-      responseNextState,
-      context,
-    );
-
-    // If onEnter returned a state, transition again
-    if (enterNextState && enterNextState !== responseNextState) {
-      await updateUserState(telegramId, enterNextState, stateData);
-      context.currentState = enterNextState;
-      await botBuilder.executeOnEnter(enterNextState, context);
-    }
-  } else {
-    // Just update state data if no transition
-    if (JSON.stringify(stateData) !== JSON.stringify(userStateData)) {
-      await updateUserState(telegramId, user.currentState, stateData);
-    }
-  }
-
-  // Stop the actor
-  actor.stop();
 }
 
 /**
- * Send a message using Telegram Bot API
+ * Transition to a new state and execute onEnter handler
  */
-async function sendMessage(
-  client: TelegramClient,
-  botToken: string,
-  chatId: number,
-  text: string,
+async function transitionToState(
+  ctx: BotContext,
+  session: SessionData,
+  toState: AppStates,
+  handlerContext: BotHandlerContext<AppStates>,
 ): Promise<void> {
-  try {
-    const response = await fetch(
-      `https://api.telegram.org/bot${botToken}/sendMessage`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: text,
-          parse_mode: "Markdown",
-        }),
-      },
-    );
+  // Update session state
+  session.currentState = toState;
 
-    const result = (await response.json()) as TelegramApiResponse;
-    if (!result.ok) {
-      console.error("Failed to send message:", result.description);
-    }
-  } catch (error) {
-    console.error("Error sending message:", error);
+  // Execute onEnter handler for new state
+  const enterNextState = await appBuilder.executeOnEnter(
+    toState,
+    handlerContext,
+  );
+
+  // Save state data changes
+  session.stateData =
+    handlerContext.getData<Record<string, unknown>>("__all") ||
+    session.stateData;
+
+  // Handle chained transition from onEnter
+  if (enterNextState && enterNextState !== toState) {
+    // Create fresh context for the next state
+    const nextContext = createHandlerContext(ctx, session);
+    const nextState = enterNextState as AppStates;
+    nextContext.currentState = nextState;
+    await transitionToState(ctx, session, nextState, nextContext);
   }
 }

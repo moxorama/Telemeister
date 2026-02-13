@@ -10,7 +10,7 @@ function getEnvVar(name: string, required: boolean = true): string {
   if (required && !value) {
     throw new Error(`Missing required environment variable: ${name}`);
   }
-  return value || '';
+  return value || "";
 }
 
 function getEnvVarInt(name: string, defaultValue: number): number {
@@ -24,26 +24,23 @@ function getEnvVarInt(name: string, defaultValue: number): number {
 }
 
 export const config = {
-  // Telegram API credentials
-  apiId: getEnvVarInt('API_ID', 0),
-  apiHash: getEnvVar('API_HASH'),
-  botToken: getEnvVar('BOT_TOKEN'),
-  sessionString: getEnvVar('SESSION_STRING', false),
+  // Telegram Bot API credentials (from @BotFather)
+  botToken: getEnvVar("BOT_TOKEN"),
 
   // Bot mode: 'polling' or 'webhook'
-  botMode: (process.env.BOT_MODE || 'polling') as 'polling' | 'webhook',
+  botMode: (process.env.BOT_MODE || "polling") as "polling" | "webhook",
 
   // Webhook configuration
-  webhookUrl: process.env.WEBHOOK_URL || '',
-  port: getEnvVarInt('PORT', 3000),
+  webhookUrl: process.env.WEBHOOK_URL || "",
+  port: getEnvVarInt("PORT", 3000),
 
   // Database configuration
   db: {
-    host: process.env.DB_HOST || 'localhost',
-    port: getEnvVarInt('DB_PORT', 3306),
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    name: process.env.DB_NAME || 'telemeister',
+    host: process.env.DB_HOST || "localhost",
+    port: getEnvVarInt("DB_PORT", 3306),
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "",
+    name: process.env.DB_NAME || "telemeister",
   },
 };
 
@@ -51,17 +48,13 @@ export const config = {
  * Validate configuration
  */
 export function validateConfig(): void {
-  if (!config.apiId) {
-    throw new Error('API_ID must be a valid number');
-  }
-  if (!config.apiHash) {
-    throw new Error('API_HASH is required');
-  }
   if (!config.botToken) {
-    throw new Error('BOT_TOKEN is required');
+    throw new Error(
+      "BOT_TOKEN is required. Get it from @BotFather on Telegram.",
+    );
   }
 
-  if (config.botMode === 'webhook' && !config.webhookUrl) {
-    throw new Error('WEBHOOK_URL is required when BOT_MODE=webhook');
+  if (config.botMode === "webhook" && !config.webhookUrl) {
+    throw new Error("WEBHOOK_URL is required when BOT_MODE=webhook");
   }
 }

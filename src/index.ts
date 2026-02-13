@@ -20,9 +20,9 @@ async function main(): Promise<void> {
   console.log(`🚀 Starting Telemeister in ${config.botMode} mode...`);
 
   if (config.botMode === "webhook") {
-    await startWebhookMode(config.webhookUrl, config.port);
+    await startWebhookMode(config.botToken, config.webhookUrl, config.port);
   } else {
-    await startPollingMode();
+    await startPollingMode(config.botToken);
   }
 }
 

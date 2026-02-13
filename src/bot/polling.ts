@@ -1,169 +1,190 @@
-import { TelegramClient, sessions } from "telegram";
-const { StringSession } = sessions;
-import type { NewMessageEvent } from "telegram/events/NewMessage.js";
-import { createActor } from "xstate";
-import { compactMachine } from "../core/compact-machine.js";
-import { botBuilder } from "../core/index.js";
+/**
+ * Grammy-based Polling Mode Implementation
+ *
+ * Uses Grammy Bot API library with database-backed sessions.
+ */
+
+import { Bot, session, type Context } from "grammy";
+import type { AppStates } from "../core/app-states.js";
+import { appBuilder } from "../core/index.js";
 import {
-  getUserByTelegramId,
-  createOrUpdateUser,
-  updateUserState,
-} from "../database.js";
+  PrismaSessionAdapter,
+  getOrCreateSession,
+  type SessionData,
+} from "./session.js";
 import type { BotHandlerContext } from "../core/types.js";
 
-/**
- * Start the bot in polling mode
- * This mode continuously polls Telegram for new messages
- */
-export async function startPollingMode(): Promise<TelegramClient> {
-  const apiId = parseInt(process.env.API_ID || "0");
-  const apiHash = process.env.API_HASH || "";
-  const botToken = process.env.BOT_TOKEN || "";
-  const sessionString = process.env.SESSION_STRING || "";
-
-  if (!apiId || !apiHash || !botToken) {
-    throw new Error(
-      "Missing required environment variables: API_ID, API_HASH, BOT_TOKEN",
-    );
-  }
-
-  const client = new TelegramClient(
-    new StringSession(sessionString),
-    apiId,
-    apiHash,
-    { connectionRetries: 5 },
-  );
-
-  await client.start({
-    botAuthToken: botToken,
-  });
-
-  console.log("🤖 Bot started in polling mode");
-
-  // Handle incoming messages
-  client.addEventHandler(async (event: NewMessageEvent) => {
-    const message = event.message;
-    if (!message || !message.text) return;
-
-    // Skip messages from bots (optional)
-    if ((message.sender as any)?.bot) return;
-
-    const chatId = message.chatId?.toJSNumber() || 0;
-    const telegramId = message.senderId?.toJSNumber() || 0;
-    const text = message.text;
-
-    if (!telegramId || !chatId) {
-      console.warn("Missing telegramId or chatId");
-      return;
-    }
-
-    try {
-      await handleUserMessage(client, telegramId, chatId, text);
-    } catch (error) {
-      console.error("Error handling message:", error);
-      // Send error message to user
-      try {
-        await client.sendMessage(chatId, {
-          message: "❌ An error occurred. Please try again.",
-        });
-      } catch {
-        // Ignore send errors
-      }
-    }
-  });
-
-  return client;
+// Extend Grammy context with our custom properties
+interface BotContext extends Context {
+  session: SessionData;
 }
 
 /**
- * Handle a user message - load user, execute handler, transition state
+ * Create and configure the Grammy bot
  */
-async function handleUserMessage(
-  client: TelegramClient,
-  telegramId: number,
-  chatId: number,
-  text: string,
-): Promise<void> {
-  // Get or create user from database
-  let user = await getUserByTelegramId(telegramId);
-  if (!user) {
-    user = await createOrUpdateUser({
-      telegramId,
-      chatId,
-      currentState: "idle",
-      stateData: {},
-    });
-    console.log(`[Bot] New user created: ${telegramId}`);
-  }
+export function createBot(botToken: string): Bot<BotContext> {
+  const bot = new Bot<BotContext>(botToken);
 
-  // Parse state data from user info
-  const userStateData: Record<string, unknown> = user.info?.stateData
-    ? JSON.parse(user.info.stateData as string)
-    : {};
-
-  // Create XState actor for this user
-  const actor = createActor(compactMachine, {
-    input: {
-      userId: user.id,
-      telegramId: user.telegramId,
-      chatId: user.chatId,
-      currentState: user.currentState,
-      stateData: userStateData,
-    },
-  });
-
-  actor.start();
-
-  // Track state data changes
-  const stateData = { ...userStateData };
-
-  // Create bot context for handlers
-  const context: BotHandlerContext = {
-    userId: user.id,
-    telegramId: user.telegramId,
-    chatId: user.chatId,
-    currentState: user.currentState,
-    send: (msg: string) => client.sendMessage(chatId, { message: msg }),
-    setData: <T>(key: string, value: T) => {
-      stateData[key] = value;
-    },
-    getData: <T>(key: string): T | undefined => stateData[key] as T,
-    transition: async (toState: string) => {
-      actor.send({ type: "TRANSITION", toState });
-    },
-  };
-
-  // Execute onResponse handler for current state
-  const responseNextState = await botBuilder.executeOnResponse(
-    user.currentState,
-    context,
-    text,
+  // Install session middleware with Prisma adapter
+  bot.use(
+    session({
+      initial: (): SessionData => ({
+        currentState: "idle",
+        stateData: {},
+      }),
+      storage: new PrismaSessionAdapter(),
+      getSessionKey: (ctx) => ctx.from?.id.toString(),
+    }),
   );
 
-  // If handler returned a state, transition to it
-  if (responseNextState && responseNextState !== user.currentState) {
-    await updateUserState(telegramId, responseNextState, stateData);
-    context.currentState = responseNextState;
+  // Ensure user exists in database on each update
+  bot.use(async (ctx, next) => {
+    if (!ctx.from || !ctx.chat) {
+      return next();
+    }
 
-    // Execute onEnter for the new state
-    const enterNextState = await botBuilder.executeOnEnter(
-      responseNextState,
-      context,
+    const telegramId = ctx.from.id;
+    const chatId = ctx.chat.id;
+
+    // Get or create user session
+    const userSession = await getOrCreateSession(telegramId, chatId);
+    ctx.session = userSession;
+
+    return next();
+  });
+
+  // Handle text messages
+  bot.on("message:text", async (ctx) => {
+    const text = ctx.message.text;
+    const session = ctx.session;
+
+    // Create handler context compatible with existing handlers
+    const handlerContext = createHandlerContext(ctx, session);
+
+    // Execute onResponse handler for current state
+    const nextState = await appBuilder.executeOnResponse(
+      session.currentState as AppStates,
+      handlerContext,
+      text,
     );
 
-    // If onEnter returned a state, transition again
-    if (enterNextState && enterNextState !== responseNextState) {
-      await updateUserState(telegramId, enterNextState, stateData);
-      context.currentState = enterNextState;
-      await botBuilder.executeOnEnter(enterNextState, context);
+    // Handle state transition
+    if (nextState && nextState !== session.currentState) {
+      await transitionToState(
+        ctx,
+        session,
+        nextState as AppStates,
+        handlerContext,
+      );
+    } else {
+      // Save any state data changes
+      session.stateData =
+        handlerContext.getData<Record<string, unknown>>("__all") ||
+        session.stateData;
     }
-  } else {
-    // Just update state data if no transition
-    if (JSON.stringify(stateData) !== JSON.stringify(userStateData)) {
-      await updateUserState(telegramId, user.currentState, stateData);
-    }
-  }
+  });
 
-  // Stop the actor
-  actor.stop();
+  // Handle /start command
+  bot.command("start", async (ctx) => {
+    const session = ctx.session;
+
+    // Create handler context
+    const handlerContext = createHandlerContext(ctx, session);
+
+    // Transition to welcome state
+    await transitionToState(ctx, session, "welcome", handlerContext);
+  });
+
+  return bot;
+}
+
+/**
+ * Start the bot in polling mode
+ */
+export async function startPollingMode(botToken: string): Promise<void> {
+  const bot = createBot(botToken);
+
+  console.log("🤖 Bot started in polling mode");
+
+  // Start polling
+  await bot.start({
+    onStart: () => {
+      console.log("✅ Bot is running and polling for updates...");
+    },
+  });
+}
+
+/**
+ * Create a handler context compatible with existing handlers
+ */
+function createHandlerContext(
+  ctx: BotContext,
+  session: SessionData,
+): BotHandlerContext<AppStates> {
+  // Local state data copy for modifications
+  const localStateData = { ...session.stateData };
+
+  return {
+    userId: session.userId || 0,
+    telegramId: ctx.from?.id || 0,
+    chatId: ctx.chat?.id || 0,
+    currentState: session.currentState as AppStates,
+
+    send: async (text: string) => {
+      await ctx.reply(text, { parse_mode: "Markdown" });
+    },
+
+    setData: <T>(key: string, value: T) => {
+      localStateData[key] = value;
+    },
+
+    getData: <T>(key: string): T | undefined => {
+      if (key === "__all") {
+        return localStateData as T;
+      }
+      return localStateData[key] as T | undefined;
+    },
+
+    transition: async (toState: AppStates) => {
+      await transitionToState(
+        ctx,
+        session,
+        toState,
+        createHandlerContext(ctx, session),
+      );
+    },
+  };
+}
+
+/**
+ * Transition to a new state and execute onEnter handler
+ */
+async function transitionToState(
+  ctx: BotContext,
+  session: SessionData,
+  toState: AppStates,
+  handlerContext: BotHandlerContext<AppStates>,
+): Promise<void> {
+  // Update session state
+  session.currentState = toState;
+
+  // Execute onEnter handler for new state
+  const enterNextState = await appBuilder.executeOnEnter(
+    toState,
+    handlerContext,
+  );
+
+  // Save state data changes
+  session.stateData =
+    handlerContext.getData<Record<string, unknown>>("__all") ||
+    session.stateData;
+
+  // Handle chained transition from onEnter
+  if (enterNextState && enterNextState !== toState) {
+    // Create fresh context for the next state
+    const nextContext = createHandlerContext(ctx, session);
+    const nextState = enterNextState as AppStates;
+    nextContext.currentState = nextState;
+    await transitionToState(ctx, session, nextState, nextContext);
+  }
 }
