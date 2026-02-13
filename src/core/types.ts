@@ -1,5 +1,5 @@
-import type { AppStates } from "./app-states.js";
-import { BotBuilder } from "./builder.js";
+import type { AppStates } from './app-states.js';
+import { BotBuilder } from './builder.js';
 
 /**
  * Core Types for Telemeister
@@ -119,7 +119,7 @@ export interface BotHandlerContext<TState extends BotState = BotState> {
  * @template TState - Union type of all valid states
  */
 export type EnterHandler<TState extends BotState = BotState> = (
-  context: BotHandlerContext<TState>,
+  context: BotHandlerContext<TState>
 ) => Promise<TState | void>;
 
 /**
@@ -130,7 +130,7 @@ export type EnterHandler<TState extends BotState = BotState> = (
  */
 export type ResponseHandler<TState extends BotState = BotState> = (
   context: BotHandlerContext<TState>,
-  response: string,
+  response: string
 ) => Promise<TState | void>;
 
 /**
@@ -166,9 +166,9 @@ export interface BotContext {
  * XState events that can be sent to the machine
  */
 export type BotEvent =
-  | { type: "USER_MESSAGE"; message: string }
-  | { type: "TRANSITION"; toState: string }
-  | { type: "REENTER" };
+  | { type: 'USER_MESSAGE'; message: string }
+  | { type: 'TRANSITION'; toState: string }
+  | { type: 'REENTER' };
 
 /**
  * Input type for creating the machine

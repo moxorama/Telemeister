@@ -4,7 +4,7 @@ import type {
   EnterHandler,
   ResponseHandler,
   StateHandlers,
-} from "./types.js";
+} from './types.js';
 
 /**
  * State Builder - Fluent API for configuring a single state
@@ -128,9 +128,7 @@ export class BotBuilder<TState extends BotState = BotState> {
    */
   forState(state: TState): StateBuilder<TState>;
   forState(states: TState[]): MultiStateBuilder<TState>;
-  forState(
-    state: TState | TState[],
-  ): StateBuilder<TState> | MultiStateBuilder<TState> {
+  forState(state: TState | TState[]): StateBuilder<TState> | MultiStateBuilder<TState> {
     if (Array.isArray(state)) {
       return new MultiStateBuilder(state, this.handlers);
     }
@@ -168,10 +166,7 @@ export class BotBuilder<TState extends BotState = BotState> {
    * @internal Called by the bot handlers
    * @returns The next state to transition to (if any), or void
    */
-  async executeOnEnter(
-    state: TState,
-    context: BotHandlerContext<TState>,
-  ): Promise<TState | void> {
+  async executeOnEnter(state: TState, context: BotHandlerContext<TState>): Promise<TState | void> {
     const handlers = this.handlers.get(state);
     const handler = handlers?.onEnter;
     if (handler) {
@@ -187,7 +182,7 @@ export class BotBuilder<TState extends BotState = BotState> {
   async executeOnResponse(
     state: TState,
     context: BotHandlerContext<TState>,
-    response: string,
+    response: string
   ): Promise<TState | void> {
     const handlers = this.handlers.get(state);
     const handler = handlers?.onResponse;
@@ -236,9 +231,4 @@ export class BotBuilder<TState extends BotState = BotState> {
 export const botBuilder = new BotBuilder();
 
 // Re-export types for convenience
-export type {
-  BotHandlerContext,
-  BotState,
-  EnterHandler,
-  ResponseHandler,
-} from "./types.js";
+export type { BotHandlerContext, BotState, EnterHandler, ResponseHandler } from './types.js';

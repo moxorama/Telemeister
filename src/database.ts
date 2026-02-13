@@ -12,20 +12,20 @@
  * - MySQL: provider = "mysql"
  */
 
-import "dotenv/config";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient, User, UserInfo } from "./generated/prisma/client.js";
+import 'dotenv/config';
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { PrismaClient, User, UserInfo } from './generated/prisma/client.js';
 
 // Determine database provider from URL
-const databaseUrl = process.env.DATABASE_URL || "file:./dev.db";
-const isMysql = databaseUrl.startsWith("mysql:");
+const databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
+const isMysql = databaseUrl.startsWith('mysql:');
 
 // Create adapter based on database type
 // For now, SQLite is fully supported. MySQL adapter requires additional setup.
 const adapter = isMysql
   ? (() => {
       throw new Error(
-        "MySQL adapter not yet configured. Please configure @prisma/adapter-mariadb in src/database.ts",
+        'MySQL adapter not yet configured. Please configure @prisma/adapter-mariadb in src/database.ts'
       );
     })()
   : new PrismaBetterSqlite3({
@@ -46,9 +46,7 @@ export type UserWithInfo = User & {
 /**
  * Get user by Telegram ID with joined user info
  */
-export async function getUserByTelegramId(
-  telegramId: number,
-): Promise<UserWithInfo | null> {
+export async function getUserByTelegramId(telegramId: number): Promise<UserWithInfo | null> {
   const user = await prisma.user.findUnique({
     where: { telegramId },
     include: { info: true },
@@ -103,7 +101,7 @@ export async function createOrUpdateUser(data: {
       data: {
         telegramId: data.telegramId,
         chatId: data.chatId,
-        currentState: data.currentState || "idle",
+        currentState: data.currentState || 'idle',
         info: {
           create: {
             stateData: JSON.stringify(data.stateData || {}),
@@ -123,7 +121,7 @@ export async function createOrUpdateUser(data: {
 export async function updateUserState(
   telegramId: number,
   currentState: string,
-  stateData?: Record<string, unknown>,
+  stateData?: Record<string, unknown>
 ): Promise<void> {
   const user = await prisma.user.findUnique({
     where: { telegramId },

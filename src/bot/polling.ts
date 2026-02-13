@@ -4,15 +4,11 @@
  * Uses Grammy Bot API library with database-backed sessions.
  */
 
-import { Bot, session, type Context } from "grammy";
-import type { AppStates } from "../core/app-states.js";
-import { appBuilder } from "../core/index.js";
-import {
-  PrismaSessionAdapter,
-  getOrCreateSession,
-  type SessionData,
-} from "./session.js";
-import type { BotHandlerContext } from "../core/types.js";
+import { Bot, session, type Context } from 'grammy';
+import type { AppStates } from '../core/app-states.js';
+import { appBuilder } from '../core/index.js';
+import { PrismaSessionAdapter, getOrCreateSession, type SessionData } from './session.js';
+import type { BotHandlerContext } from '../core/types.js';
 
 // Extend Grammy context with our custom properties
 interface BotContext extends Context {
@@ -29,12 +25,12 @@ export function createBot(botToken: string): Bot<BotContext> {
   bot.use(
     session({
       initial: (): SessionData => ({
-        currentState: "idle",
+        currentState: 'idle',
         stateData: {},
       }),
       storage: new PrismaSessionAdapter(),
       getSessionKey: (ctx) => ctx.from?.id.toString(),
-    }),
+    })
   );
 
   // Ensure user exists in database on each update
@@ -54,7 +50,7 @@ export function createBot(botToken: string): Bot<BotContext> {
   });
 
   // Handle text messages
-  bot.on("message:text", async (ctx) => {
+  bot.on('message:text', async (ctx) => {
     const text = ctx.message.text;
     const session = ctx.session;
 
@@ -65,22 +61,16 @@ export function createBot(botToken: string): Bot<BotContext> {
     const nextState = await appBuilder.executeOnResponse(
       session.currentState as AppStates,
       handlerContext,
-      text,
+      text
     );
 
     // Handle state transition
     if (nextState && nextState !== session.currentState) {
-      await transitionToState(
-        ctx,
-        session,
-        nextState as AppStates,
-        handlerContext,
-      );
+      await transitionToState(ctx, session, nextState as AppStates, handlerContext);
     } else {
       // Save any state data changes
       session.stateData =
-        handlerContext.getData<Record<string, unknown>>("__all") ||
-        session.stateData;
+        handlerContext.getData<Record<string, unknown>>('__all') || session.stateData;
     }
   });
 
@@ -93,12 +83,12 @@ export function createBot(botToken: string): Bot<BotContext> {
 export async function startPollingMode(botToken: string): Promise<void> {
   const bot = createBot(botToken);
 
-  console.log("🤖 Bot started in polling mode");
+  console.log('🤖 Bot started in polling mode');
 
   // Start polling
   await bot.start({
     onStart: () => {
-      console.log("✅ Bot is running and polling for updates...");
+      console.log('✅ Bot is running and polling for updates...');
     },
   });
 }
@@ -106,10 +96,7 @@ export async function startPollingMode(botToken: string): Promise<void> {
 /**
  * Create a handler context compatible with existing handlers
  */
-function createHandlerContext(
-  ctx: BotContext,
-  session: SessionData,
-): BotHandlerContext<AppStates> {
+function createHandlerContext(ctx: BotContext, session: SessionData): BotHandlerContext<AppStates> {
   // Local state data copy for modifications
   const localStateData = { ...session.stateData };
 
@@ -120,7 +107,7 @@ function createHandlerContext(
     currentState: session.currentState as AppStates,
 
     send: async (text: string) => {
-      await ctx.reply(text, { parse_mode: "Markdown" });
+      await ctx.reply(text, { parse_mode: 'Markdown' });
     },
 
     setData: <T>(key: string, value: T) => {
@@ -128,19 +115,14 @@ function createHandlerContext(
     },
 
     getData: <T>(key: string): T | undefined => {
-      if (key === "__all") {
+      if (key === '__all') {
         return localStateData as T;
       }
       return localStateData[key] as T | undefined;
     },
 
     transition: async (toState: AppStates) => {
-      await transitionToState(
-        ctx,
-        session,
-        toState,
-        createHandlerContext(ctx, session),
-      );
+      await transitionToState(ctx, session, toState, createHandlerContext(ctx, session));
     },
   };
 }
@@ -152,21 +134,16 @@ async function transitionToState(
   ctx: BotContext,
   session: SessionData,
   toState: AppStates,
-  handlerContext: BotHandlerContext<AppStates>,
+  handlerContext: BotHandlerContext<AppStates>
 ): Promise<void> {
   // Update session state
   session.currentState = toState;
 
   // Execute onEnter handler for new state
-  const enterNextState = await appBuilder.executeOnEnter(
-    toState,
-    handlerContext,
-  );
+  const enterNextState = await appBuilder.executeOnEnter(toState, handlerContext);
 
   // Save state data changes
-  session.stateData =
-    handlerContext.getData<Record<string, unknown>>("__all") ||
-    session.stateData;
+  session.stateData = handlerContext.getData<Record<string, unknown>>('__all') || session.stateData;
 
   // Handle chained transition from onEnter
   if (enterNextState && enterNextState !== toState) {

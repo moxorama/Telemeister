@@ -4,16 +4,12 @@
  * Uses Grammy Bot API library with Express for webhook handling.
  */
 
-import express, { Request, Response } from "express";
-import { Bot, session, webhookCallback, type Context } from "grammy";
-import type { AppStates } from "../core/app-states.js";
-import { appBuilder } from "../core/index.js";
-import {
-  PrismaSessionAdapter,
-  getOrCreateSession,
-  type SessionData,
-} from "./session.js";
-import type { BotHandlerContext } from "../core/types.js";
+import express, { Request, Response } from 'express';
+import { Bot, session, webhookCallback, type Context } from 'grammy';
+import type { AppStates } from '../core/app-states.js';
+import { appBuilder } from '../core/index.js';
+import { PrismaSessionAdapter, getOrCreateSession, type SessionData } from './session.js';
+import type { BotHandlerContext } from '../core/types.js';
 
 // Extend Grammy context with our custom properties
 interface BotContext extends Context {
@@ -30,12 +26,12 @@ export function createBot(botToken: string): Bot<BotContext> {
   bot.use(
     session({
       initial: (): SessionData => ({
-        currentState: "idle",
+        currentState: 'idle',
         stateData: {},
       }),
       storage: new PrismaSessionAdapter(),
       getSessionKey: (ctx) => ctx.from?.id.toString(),
-    }),
+    })
   );
 
   // Ensure user exists in database on each update
@@ -55,7 +51,7 @@ export function createBot(botToken: string): Bot<BotContext> {
   });
 
   // Handle text messages
-  bot.on("message:text", async (ctx) => {
+  bot.on('message:text', async (ctx) => {
     const text = ctx.message.text;
     const session = ctx.session;
 
@@ -66,34 +62,28 @@ export function createBot(botToken: string): Bot<BotContext> {
     const nextState = await appBuilder.executeOnResponse(
       session.currentState as AppStates,
       handlerContext,
-      text,
+      text
     );
 
     // Handle state transition
     if (nextState && nextState !== session.currentState) {
-      await transitionToState(
-        ctx,
-        session,
-        nextState as AppStates,
-        handlerContext,
-      );
+      await transitionToState(ctx, session, nextState as AppStates, handlerContext);
     } else {
       // Save any state data changes
       session.stateData =
-        handlerContext.getData<Record<string, unknown>>("__all") ||
-        session.stateData;
+        handlerContext.getData<Record<string, unknown>>('__all') || session.stateData;
     }
   });
 
   // Handle /start command
-  bot.command("start", async (ctx) => {
+  bot.command('start', async (ctx) => {
     const session = ctx.session;
 
     // Create handler context
     const handlerContext = createHandlerContext(ctx, session);
 
     // Transition to welcome state
-    await transitionToState(ctx, session, "welcome", handlerContext);
+    await transitionToState(ctx, session, 'welcome', handlerContext);
   });
 
   return bot;
@@ -109,7 +99,7 @@ export function createBot(botToken: string): Bot<BotContext> {
 export async function startWebhookMode(
   botToken: string,
   webhookUrl: string,
-  port: number,
+  port: number
 ): Promise<void> {
   const bot = createBot(botToken);
 
@@ -117,17 +107,17 @@ export async function startWebhookMode(
   const app = express();
 
   // Health check endpoint
-  app.get("/health", (_req: Request, res: Response) => {
+  app.get('/health', (_req: Request, res: Response) => {
     res.json({
-      status: "ok",
-      mode: "webhook",
+      status: 'ok',
+      mode: 'webhook',
       timestamp: new Date().toISOString(),
     });
   });
 
   // Set up webhook endpoint using Grammy's webhookCallback
   // This handles the Telegram update parsing automatically
-  app.use("/webhook", webhookCallback(bot, "express"));
+  app.use('/webhook', webhookCallback(bot, 'express'));
 
   // Start server
   app.listen(port, async () => {
@@ -138,11 +128,11 @@ export async function startWebhookMode(
     // Set webhook with Telegram
     try {
       await bot.api.setWebhook(webhookUrl, {
-        allowed_updates: ["message"],
+        allowed_updates: ['message'],
       });
-      console.log("✅ Webhook set successfully with Telegram");
+      console.log('✅ Webhook set successfully with Telegram');
     } catch (error) {
-      console.error("❌ Failed to set webhook:", error);
+      console.error('❌ Failed to set webhook:', error);
       throw error;
     }
   });
@@ -151,19 +141,16 @@ export async function startWebhookMode(
 /**
  * Set webhook URL manually (for scripts)
  */
-export async function setWebhook(
-  botToken: string,
-  webhookUrl: string,
-): Promise<void> {
+export async function setWebhook(botToken: string, webhookUrl: string): Promise<void> {
   const bot = new Bot(botToken);
 
   try {
     await bot.api.setWebhook(webhookUrl, {
-      allowed_updates: ["message"],
+      allowed_updates: ['message'],
     });
-    console.log("✅ Webhook set successfully");
+    console.log('✅ Webhook set successfully');
   } catch (error) {
-    console.error("❌ Failed to set webhook:", error);
+    console.error('❌ Failed to set webhook:', error);
     throw error;
   } finally {
     // Don't start the bot, just set the webhook
@@ -179,9 +166,9 @@ export async function deleteWebhook(botToken: string): Promise<void> {
 
   try {
     await bot.api.deleteWebhook({ drop_pending_updates: true });
-    console.log("✅ Webhook deleted successfully");
+    console.log('✅ Webhook deleted successfully');
   } catch (error) {
-    console.error("❌ Failed to delete webhook:", error);
+    console.error('❌ Failed to delete webhook:', error);
     throw error;
   }
 }
@@ -196,7 +183,7 @@ export async function getWebhookInfo(botToken: string): Promise<unknown> {
     const info = await bot.api.getWebhookInfo();
     return info;
   } catch (error) {
-    console.error("Error getting webhook info:", error);
+    console.error('Error getting webhook info:', error);
     throw error;
   }
 }
@@ -204,10 +191,7 @@ export async function getWebhookInfo(botToken: string): Promise<unknown> {
 /**
  * Create a handler context compatible with existing handlers
  */
-function createHandlerContext(
-  ctx: BotContext,
-  session: SessionData,
-): BotHandlerContext<AppStates> {
+function createHandlerContext(ctx: BotContext, session: SessionData): BotHandlerContext<AppStates> {
   // Local state data copy for modifications
   const localStateData = { ...session.stateData };
 
@@ -218,7 +202,7 @@ function createHandlerContext(
     currentState: session.currentState as AppStates,
 
     send: async (text: string) => {
-      await ctx.reply(text, { parse_mode: "Markdown" });
+      await ctx.reply(text, { parse_mode: 'Markdown' });
     },
 
     setData: <T>(key: string, value: T) => {
@@ -226,19 +210,14 @@ function createHandlerContext(
     },
 
     getData: <T>(key: string): T | undefined => {
-      if (key === "__all") {
+      if (key === '__all') {
         return localStateData as T;
       }
       return localStateData[key] as T | undefined;
     },
 
     transition: async (toState: AppStates) => {
-      await transitionToState(
-        ctx,
-        session,
-        toState,
-        createHandlerContext(ctx, session),
-      );
+      await transitionToState(ctx, session, toState, createHandlerContext(ctx, session));
     },
   };
 }
@@ -250,21 +229,16 @@ async function transitionToState(
   ctx: BotContext,
   session: SessionData,
   toState: AppStates,
-  handlerContext: BotHandlerContext<AppStates>,
+  handlerContext: BotHandlerContext<AppStates>
 ): Promise<void> {
   // Update session state
   session.currentState = toState;
 
   // Execute onEnter handler for new state
-  const enterNextState = await appBuilder.executeOnEnter(
-    toState,
-    handlerContext,
-  );
+  const enterNextState = await appBuilder.executeOnEnter(toState, handlerContext);
 
   // Save state data changes
-  session.stateData =
-    handlerContext.getData<Record<string, unknown>>("__all") ||
-    session.stateData;
+  session.stateData = handlerContext.getData<Record<string, unknown>>('__all') || session.stateData;
 
   // Handle chained transition from onEnter
   if (enterNextState && enterNextState !== toState) {

@@ -1,4 +1,4 @@
-import { appBuilder, type AppContext } from "../core/index.js";
+import { appBuilder, type AppContext } from '../../core/index.js';
 
 /**
  * welcome State Handler
@@ -7,7 +7,7 @@ import { appBuilder, type AppContext } from "../core/index.js";
  */
 
 appBuilder
-  .forState("welcome")
+  .forState('welcome')
   .onEnter(async (context: AppContext) => {
     // Called when user enters this state
     // Can optionally return a state name to immediately transition
@@ -24,15 +24,15 @@ appBuilder
     const name = response.trim();
 
     if (name.length < 2) {
-      await context.send("Please enter a valid name (at least 2 characters).");
+      await context.send('Please enter a valid name (at least 2 characters).');
       // Stay in welcome state
       return;
     }
 
-    context.setData("name", name);
+    context.setData('name', name);
 
     // Type-safe return: only AppStates allowed
-    return "menu";
+    return 'menu';
   });
 
-console.log("✅ State handler registered: welcome");
+console.log('✅ State handler registered: welcome');

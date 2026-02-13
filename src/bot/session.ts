@@ -5,12 +5,8 @@
  * allowing user state to persist across restarts.
  */
 
-import type { StorageAdapter } from "grammy";
-import {
-  getUserByTelegramId,
-  createOrUpdateUser,
-  updateUserState,
-} from "../database.js";
+import type { StorageAdapter } from 'grammy';
+import { getUserByTelegramId, createOrUpdateUser, updateUserState } from '../database.js';
 
 /**
  * Session data stored per user
@@ -79,7 +75,7 @@ export class PrismaSessionAdapter implements StorageAdapter<SessionData> {
     if (isNaN(telegramId)) return;
 
     // Reset to idle state instead of deleting
-    await updateUserState(telegramId, "idle", {});
+    await updateUserState(telegramId, 'idle', {});
   }
 }
 
@@ -87,10 +83,7 @@ export class PrismaSessionAdapter implements StorageAdapter<SessionData> {
  * Get or create user session
  * This helper ensures a user exists in the database before processing
  */
-export async function getOrCreateSession(
-  telegramId: number,
-  chatId: number
-): Promise<SessionData> {
+export async function getOrCreateSession(telegramId: number, chatId: number): Promise<SessionData> {
   const existing = await getUserByTelegramId(telegramId);
 
   if (existing) {
@@ -110,12 +103,12 @@ export async function getOrCreateSession(
   const newUser = await createOrUpdateUser({
     telegramId,
     chatId,
-    currentState: "idle",
+    currentState: 'idle',
     stateData: {},
   });
 
   return {
-    currentState: "idle",
+    currentState: 'idle',
     stateData: {},
     userId: newUser.id,
     chatId: newUser.chatId,

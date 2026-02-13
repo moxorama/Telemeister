@@ -10,33 +10,28 @@
  *   npm run state:add -- collectEmail
  */
 
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from 'fs';
+import * as path from 'path';
 
 const STATE_NAME = process.argv[2];
 
 if (!STATE_NAME) {
-  console.error("❌ Error: State name is required");
-  console.error("Usage: npm run state:add -- <state-name>");
+  console.error('❌ Error: State name is required');
+  console.error('Usage: npm run state:add -- <state-name>');
   process.exit(1);
 }
 
 // Validate state name (camelCase or kebab-case)
 if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(STATE_NAME)) {
   console.error(
-    "❌ Error: State name must start with a letter and contain only letters, numbers, underscores, and hyphens",
+    '❌ Error: State name must start with a letter and contain only letters, numbers, underscores, and hyphens'
   );
   process.exit(1);
 }
 
-const HANDLERS_DIR = path.join(process.cwd(), "src", "handlers");
-const STATES_INDEX_FILE = path.join(
-  process.cwd(),
-  "src",
-  "core",
-  "app-states.ts",
-);
-const INDEX_FILE = path.join(HANDLERS_DIR, "index.ts");
+const HANDLERS_DIR = path.join(process.cwd(), 'src', 'handlers');
+const STATES_INDEX_FILE = path.join(process.cwd(), 'src', 'core', 'app-states.ts');
+const INDEX_FILE = path.join(HANDLERS_DIR, 'index.ts');
 const STATE_FILE = path.join(HANDLERS_DIR, `${STATE_NAME}.ts`);
 
 // Ensure handlers directory exists
@@ -99,7 +94,7 @@ console.log(`📝 Created: src/handlers/${STATE_NAME}.ts`);
 
 // Update states/index.ts to add new state to AppStates union
 if (fs.existsSync(STATES_INDEX_FILE)) {
-  let statesContent = fs.readFileSync(STATES_INDEX_FILE, "utf-8");
+  let statesContent = fs.readFileSync(STATES_INDEX_FILE, 'utf-8');
 
   // Add new state to AppStates union (before the last quote of the last state)
   const statePattern = /export type AppStates =[\s\S]*?;/;
@@ -110,28 +105,23 @@ if (fs.existsSync(STATES_INDEX_FILE)) {
     const updatedUnion = match[0].replace(/;$/, `\n  | "${STATE_NAME}";`);
     statesContent = statesContent.replace(statePattern, updatedUnion);
     fs.writeFileSync(STATES_INDEX_FILE, statesContent);
-    console.log(
-      `📝 Added "${STATE_NAME}" to AppStates in src/core/app-states.ts`,
-    );
+    console.log(`📝 Added "${STATE_NAME}" to AppStates in src/core/app-states.ts`);
   }
 }
 
 // Update handlers/index.ts
-let indexContent = "";
+let indexContent = '';
 if (fs.existsSync(INDEX_FILE)) {
-  indexContent = fs.readFileSync(INDEX_FILE, "utf-8");
+  indexContent = fs.readFileSync(INDEX_FILE, 'utf-8');
 }
 
 // Add import if not already present
 const importLine = `import "./${STATE_NAME}";`;
 if (!indexContent.includes(importLine)) {
   // Remove the comment block ending if present, add import, then add comment back
-  const commentEnd = "// Add your custom handlers below:";
+  const commentEnd = '// Add your custom handlers below:';
   if (indexContent.includes(commentEnd)) {
-    indexContent = indexContent.replace(
-      commentEnd,
-      `${commentEnd}\n${importLine}`,
-    );
+    indexContent = indexContent.replace(commentEnd, `${commentEnd}\n${importLine}`);
   } else {
     indexContent += `\n${importLine}`;
   }
@@ -142,10 +132,6 @@ if (!indexContent.includes(importLine)) {
 
 console.log(`\n✅ State "${STATE_NAME}" added successfully!`);
 console.log(`\nNext steps:`);
-console.log(
-  `  1. Edit src/handlers/${STATE_NAME}.ts to customize the handlers`,
-);
+console.log(`  1. Edit src/handlers/${STATE_NAME}.ts to customize the handlers`);
 console.log(`  2. State "${STATE_NAME}" is already added to AppStates`);
-console.log(
-  `  3. All handlers now have type safety with the updated AppStates union`,
-);
+console.log(`  3. All handlers now have type safety with the updated AppStates union`);

@@ -1,5 +1,5 @@
-import { setup, createMachine, assign } from "xstate";
-import type { BotContext, BotEvent, BotMachineInput } from "./types.js";
+import { setup, assign } from 'xstate';
+import type { BotContext, BotEvent, BotMachineInput } from './types.js';
 
 /**
  * Compact XState Machine for Telemeister
@@ -25,8 +25,7 @@ export const compactMachine = setup({
      * Update the current state in context
      */
     updateState: assign({
-      currentState: ({ event }) =>
-        event.type === "TRANSITION" ? event.toState : "",
+      currentState: ({ event }) => (event.type === 'TRANSITION' ? event.toState : ''),
     }),
 
     /**
@@ -41,28 +40,28 @@ export const compactMachine = setup({
     },
   },
 }).createMachine({
-  id: "telemeister-bot",
-  initial: "active",
-  context: ({ input }) => ({
-    userId: input.userId,
-    telegramId: input.telegramId,
-    chatId: input.chatId,
-    currentState: input.currentState,
-    stateData: input.stateData,
+  id: 'telemeister-bot',
+  initial: 'active',
+  context: ({ input: _input }) => ({
+    userId: _input.userId,
+    telegramId: _input.telegramId,
+    chatId: _input.chatId,
+    currentState: _input.currentState,
+    stateData: _input.stateData,
   }),
   states: {
     active: {
-      entry: ["persistState"],
+      entry: ['persistState'],
       on: {
         TRANSITION: {
-          actions: ["updateState", "persistState"],
+          actions: ['updateState', 'persistState'],
           // Self-transition with reentry to trigger onEnter
-          target: "active",
+          target: 'active',
           reenter: true,
         },
         REENTER: {
           // Re-enter current state (e.g., to re-trigger onEnter)
-          target: "active",
+          target: 'active',
           reenter: true,
         },
       },
@@ -73,7 +72,7 @@ export const compactMachine = setup({
 /**
  * Create a new machine instance with the given initial state
  */
-export function createBotMachine(input: BotMachineInput) {
+export function createBotMachine(_input: BotMachineInput) {
   return setup({
     types: {
       context: {} as BotContext,
@@ -82,16 +81,15 @@ export function createBotMachine(input: BotMachineInput) {
     },
     actions: {
       updateState: assign({
-        currentState: ({ event }) =>
-          event.type === "TRANSITION" ? event.toState : "",
+        currentState: ({ event }) => (event.type === 'TRANSITION' ? event.toState : ''),
       }),
       persistState: ({ context }) => {
         console.log(`[XState] State changed to: ${context.currentState}`);
       },
     },
   }).createMachine({
-    id: "telemeister-bot",
-    initial: "active",
+    id: 'telemeister-bot',
+    initial: 'active',
     context: ({ input }) => ({
       userId: input.userId,
       telegramId: input.telegramId,
@@ -101,15 +99,15 @@ export function createBotMachine(input: BotMachineInput) {
     }),
     states: {
       active: {
-        entry: ["persistState"],
+        entry: ['persistState'],
         on: {
           TRANSITION: {
-            actions: ["updateState", "persistState"],
-            target: "active",
+            actions: ['updateState', 'persistState'],
+            target: 'active',
             reenter: true,
           },
           REENTER: {
-            target: "active",
+            target: 'active',
             reenter: true,
           },
         },

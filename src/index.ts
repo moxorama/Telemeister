@@ -1,10 +1,10 @@
-import "dotenv/config";
-import { config, validateConfig } from "./config.js";
-import { startPollingMode } from "./bot/polling.js";
-import { startWebhookMode } from "./bot/webhook.js";
+import 'dotenv/config';
+import { config, validateConfig } from './config.js';
+import { startPollingMode } from './bot/polling.js';
+import { startWebhookMode } from './bot/webhook.js';
 
 // Import state handlers (registers all handlers with the builder)
-import "./handlers";
+import './handlers';
 
 /**
  * Main entry point for the Telemeister bot
@@ -19,7 +19,7 @@ async function main(): Promise<void> {
 
   console.log(`🚀 Starting Telemeister in ${config.botMode} mode...`);
 
-  if (config.botMode === "webhook") {
+  if (config.botMode === 'webhook') {
     await startWebhookMode(config.botToken, config.webhookUrl, config.port);
   } else {
     await startPollingMode(config.botToken);
@@ -27,18 +27,18 @@ async function main(): Promise<void> {
 }
 
 // Handle uncaught errors
-process.on("unhandledRejection", (error) => {
-  console.error("Unhandled rejection:", error);
+process.on('unhandledRejection', (error) => {
+  console.error('Unhandled rejection:', error);
   process.exit(1);
 });
 
-process.on("uncaughtException", (error) => {
-  console.error("Uncaught exception:", error);
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception:', error);
   process.exit(1);
 });
 
 // Start the bot
 main().catch((error) => {
-  console.error("Failed to start bot:", error);
+  console.error('Failed to start bot:', error);
   process.exit(1);
 });

@@ -13,10 +13,4 @@
  * All application states as a union type.
  * Add new states here to get type safety across handlers.
  */
-export type AppStates =
-  | "idle"
-  | "welcome"
-  | "menu"
-  | "collectName"
-  | "collectEmail"
-  | "completed";
+export type AppStates = 'idle' | 'welcome' | 'menu' | 'collectName' | 'collectEmail' | 'completed';

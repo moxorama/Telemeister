@@ -8,8 +8,8 @@
  */
 
 // Example handlers (remove these in production)
-import "./idle";
-import "./welcome";
-import "./menu";
+import './idle/index.js';
+import './welcome/index.js';
+import './menu/index.js';
 
 // Add your custom handlers below:

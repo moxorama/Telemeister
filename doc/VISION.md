@@ -1,4 +1,5 @@
 ### TODO
+- Eslint
 - Add callback support
 - Add forChat((chatId) => boolean) filter for handlers
 - Investigate templating engine, probably move handlers to folders from files
