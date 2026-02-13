@@ -1,11 +1,12 @@
 # Telemeister
 
-A TypeScript Telegram Bot Boilerplate with XState-powered Finite State Machines (FSM), Prisma ORM for persistence, and a type-safe builder pattern for defining conversation flows.
+A TypeScript Telegram Bot Boilerplate with [Grammy](https://grammy.dev), XState-powered Finite State Machines (FSM), Prisma ORM for persistence, and a type-safe builder pattern for defining conversation flows.
 
 **Goal**: Build bot infrastructure with explicit structure that allows an LLM to build and verify bots from text descriptions, and detect inconsistencies in those descriptions.
 
 ## Features
 
+- **Grammy Bot Framework**: Modern, TypeScript-first Telegram Bot API library
 - **XState FSM**: Compact, maintainable state machines using XState's "states as data" pattern
 - **Type-Safe State Transitions**: Full TypeScript support with typed state returns
 - **Prisma ORM 7.x**: Modern database toolkit with driver adapters for SQLite and MySQL
@@ -31,9 +32,7 @@ cp .env.example .env
 
 Required environment variables:
 ```env
-API_ID=your_api_id          # From https://my.telegram.org/apps
-API_HASH=your_api_hash      # From https://my.telegram.org/apps
-BOT_TOKEN=your_bot_token    # From @BotFather
+BOT_TOKEN=your_bot_token    # From @BotFather (https://t.me/BotFather)
 
 # Database Configuration
 # For SQLite (development):
@@ -346,14 +345,14 @@ states: {
 
 The actual state value is stored in `context.currentState`. The builder pattern is the source of truth for valid states.
 
-## Prisma 7.x Features
+## Technology Stack
 
-This project uses Prisma ORM 7.x with:
-
-- **Driver Adapters**: Required adapters for database connections (`@prisma/adapter-better-sqlite3`, `@prisma/adapter-mariadb`)
-- **ESM-Only**: Native ES module support
-- **Generated Client in Source**: Better IDE support and file watching
-- **Separate Config**: Database URL in `prisma.config.ts`, schema in `schema.prisma`
+- **[Grammy](https://grammy.dev)**: Modern Telegram Bot API framework with excellent TypeScript support
+- **[XState](https://stately.ai/docs/xstate)**: State machines for complex conversation flows
+- **[Prisma ORM 7.x](https://prisma.io)**: Database toolkit with driver adapters
+  - **Driver Adapters**: Required adapters for database connections (`@prisma/adapter-better-sqlite3`, `@prisma/adapter-mariadb`)
+  - **ESM-Only**: Native ES module support
+  - **Generated Client in Source**: Better IDE support and file watching
 
 ## License
 
