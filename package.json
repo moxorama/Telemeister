@@ -22,7 +22,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
+    "dev:watch": "tsx watch src/index.ts",
     "dev:webhook": "BOT_MODE=webhook tsx src/index.ts",
+    "dev:webhook:watch": "BOT_MODE=webhook tsx watch src/index.ts",
     "start": "node dist/index.js",
     "start:webhook": "BOT_MODE=webhook node dist/index.js",
     "db:generate": "prisma generate",
@@ -50,6 +52,7 @@
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.0.0",
     "@prisma/adapter-mariadb": "^7.0.0",
+    "@prisma/client": "^7.4.0",
     "better-sqlite3": "^12.6.2",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",

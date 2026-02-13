@@ -84,17 +84,6 @@ export function createBot(botToken: string): Bot<BotContext> {
     }
   });
 
-  // Handle /start command
-  bot.command("start", async (ctx) => {
-    const session = ctx.session;
-
-    // Create handler context
-    const handlerContext = createHandlerContext(ctx, session);
-
-    // Transition to welcome state
-    await transitionToState(ctx, session, "welcome", handlerContext);
-  });
-
   return bot;
 }
 

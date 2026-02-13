@@ -8,6 +8,7 @@
  */
 
 // Example handlers (remove these in production)
+import "./idle";
 import "./welcome";
 import "./menu";
 
