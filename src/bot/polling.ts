@@ -39,8 +39,8 @@ export function createBot(botToken: string): Bot<BotContext> {
       return next();
     }
 
-    const telegramId = ctx.from.id;
-    const chatId = ctx.chat.id;
+    const telegramId = ctx.from.id.toString();
+    const chatId = ctx.chat.id.toString();
 
     // Get or create user session
     const userSession = await getOrCreateSession(telegramId, chatId);

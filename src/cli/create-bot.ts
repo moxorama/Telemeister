@@ -183,12 +183,21 @@ datasource db {
 }
 
 model User {
-  id          Int      @id @default(autoincrement())
-  telegramId  BigInt   @unique
-  chatId      BigInt
-  currentState String  @default("idle")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           Int       @id @default(autoincrement())
+  telegramId   String    @unique
+  chatId       String
+  currentState String    @default("idle")
+  updatedAt    DateTime  @updatedAt
+  info         UserInfo?
+
+  @@index([currentState])
+}
+
+model UserInfo {
+  id        String   @id @default(uuid())
+  userId    Int      @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stateData String   @default("{}")
 }
 `;
 

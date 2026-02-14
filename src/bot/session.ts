@@ -19,7 +19,7 @@ export interface SessionData {
   /** Internal user ID from database */
   userId?: number;
   /** Telegram chat ID */
-  chatId?: number;
+  chatId?: string;
 }
 
 /**
@@ -34,10 +34,7 @@ export class PrismaSessionAdapter implements StorageAdapter<SessionData> {
    * @param key - Telegram user ID (as string)
    */
   async read(key: string): Promise<SessionData | undefined> {
-    const telegramId = parseInt(key, 10);
-    if (isNaN(telegramId)) return undefined;
-
-    const user = await getUserByTelegramId(telegramId);
+    const user = await getUserByTelegramId(key);
     if (!user) return undefined;
 
     const stateData: Record<string, unknown> = user.info?.stateData
@@ -58,10 +55,7 @@ export class PrismaSessionAdapter implements StorageAdapter<SessionData> {
    * @param value - Session data to save
    */
   async write(key: string, value: SessionData): Promise<void> {
-    const telegramId = parseInt(key, 10);
-    if (isNaN(telegramId)) return;
-
-    await updateUserState(telegramId, value.currentState, value.stateData);
+    await updateUserState(key, value.currentState, value.stateData);
   }
 
   /**
@@ -71,11 +65,9 @@ export class PrismaSessionAdapter implements StorageAdapter<SessionData> {
   async delete(key: string): Promise<void> {
     // Sessions are not deleted - user records persist
     // This could be implemented if needed for GDPR compliance
-    const telegramId = parseInt(key, 10);
-    if (isNaN(telegramId)) return;
 
     // Reset to idle state instead of deleting
-    await updateUserState(telegramId, 'idle', {});
+    await updateUserState(key, 'idle', {});
   }
 }
 
@@ -83,7 +75,7 @@ export class PrismaSessionAdapter implements StorageAdapter<SessionData> {
  * Get or create user session
  * This helper ensures a user exists in the database before processing
  */
-export async function getOrCreateSession(telegramId: number, chatId: number): Promise<SessionData> {
+export async function getOrCreateSession(telegramId: string, chatId: string): Promise<SessionData> {
   const existing = await getUserByTelegramId(telegramId);
 
   if (existing) {

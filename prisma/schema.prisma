@@ -12,8 +12,8 @@ datasource db {
 
 model User {
   id           Int       @id @default(autoincrement())
-  telegramId   Int       @unique
-  chatId       Int
+  telegramId   String    @unique
+  chatId       String
   currentState String    @default("idle")
   updatedAt    DateTime  @updatedAt
   info         UserInfo?

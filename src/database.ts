@@ -46,7 +46,7 @@ export type UserWithInfo = User & {
 /**
  * Get user by Telegram ID with joined user info
  */
-export async function getUserByTelegramId(telegramId: number): Promise<UserWithInfo | null> {
+export async function getUserByTelegramId(telegramId: string): Promise<UserWithInfo | null> {
   const user = await prisma.user.findUnique({
     where: { telegramId },
     include: { info: true },
@@ -59,8 +59,8 @@ export async function getUserByTelegramId(telegramId: number): Promise<UserWithI
  * Create or update a user
  */
 export async function createOrUpdateUser(data: {
-  telegramId: number;
-  chatId: number;
+  telegramId: string;
+  chatId: string;
   currentState?: string;
   stateData?: Record<string, unknown>;
 }): Promise<UserWithInfo> {
@@ -119,7 +119,7 @@ export async function createOrUpdateUser(data: {
  * Update user state and optional state data
  */
 export async function updateUserState(
-  telegramId: number,
+  telegramId: string,
   currentState: string,
   stateData?: Record<string, unknown>
 ): Promise<void> {
