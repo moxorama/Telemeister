@@ -22,8 +22,8 @@ model User {
 }
 
 model UserInfo {
-  id        Int    @id @default(autoincrement())
-  userId    Int    @unique
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stateData String @default("{}")
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stateData String   @default("{}")
 }

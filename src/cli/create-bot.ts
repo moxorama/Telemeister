@@ -194,7 +194,7 @@ model User {
 }
 
 model UserInfo {
-  id        String   @id @default(uuid())
+  id        Int      @id @default(autoincrement())
   userId    Int      @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   stateData String   @default("{}")
