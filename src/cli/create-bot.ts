@@ -287,7 +287,7 @@ export async function createBot(botName: string | undefined): Promise<void> {
       'state:transition:delete': 'telemeister state:transition:delete',
     },
     dependencies: {
-      telemeister: '^0.0.1',
+      telemeister: '^0.1.3',
     },
     devDependencies: {
       '@types/node': '^20.0.0',
