@@ -155,7 +155,6 @@ const PRISMA_SCHEMA_CONTENT = `generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -167,6 +166,16 @@ model User {
   updatedAt   DateTime @updatedAt
 }
 `;
+
+const PRISMA_CONFIG_CONTENT = `import 'dotenv/config';
+import { defineConfig, env } from 'prisma/config';
+
+export default defineConfig({
+  schema: 'prisma/schema.prisma',
+  datasource: {
+    url: env('DATABASE_URL'),
+  },
+});`;
 
 const README_CONTENT = (botName: string) => `# ${botName}
 
@@ -266,6 +275,7 @@ export async function createBot(botName: string | undefined): Promise<void> {
     MENU_HANDLER_CONTENT
   );
   fs.writeFileSync(path.join(targetDir, 'prisma', 'schema.prisma'), PRISMA_SCHEMA_CONTENT);
+  fs.writeFileSync(path.join(targetDir, 'prisma.config.ts'), PRISMA_CONFIG_CONTENT);
   fs.writeFileSync(path.join(targetDir, 'README.md'), README_CONTENT(botName));
 
   // Create package.json with telemeister dependency
@@ -291,7 +301,7 @@ export async function createBot(botName: string | undefined): Promise<void> {
     },
     devDependencies: {
       '@types/node': '^20.0.0',
-      prisma: '^5.0.0',
+      prisma: '^7.0.0',
       tsx: '^4.0.0',
       typescript: '^5.0.0',
     },
