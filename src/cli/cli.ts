@@ -61,9 +61,7 @@ export async function runCLI(): Promise<void> {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runCLI().catch((err) => {
-    console.error('❌ Error:', err.message);
-    process.exit(1);
-  });
-}
+runCLI().catch((err) => {
+  console.error('❌ Error:', err.message);
+  process.exit(1);
+});
