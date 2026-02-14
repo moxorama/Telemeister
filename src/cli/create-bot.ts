@@ -65,13 +65,38 @@ const INDEX_TS_CONTENT = `/**
  * Bot entry point
  */
 
-import { botBuilder } from 'telemeister/core';
+import 'dotenv/config';
+import { startPollingMode, startWebhookMode } from 'telemeister/bot';
 import './handlers/index.js';
 
-const bot = botBuilder.build();
+const botToken = process.env.BOT_TOKEN;
+if (!botToken) {
+  console.error('❌ BOT_TOKEN environment variable is required');
+  process.exit(1);
+}
 
-// Start bot
-bot.start();
+const botMode = process.env.BOT_MODE || 'polling';
+
+async function main(): Promise<void> {
+  console.log(\`🚀 Starting bot in \${botMode} mode...\`);
+  
+  if (botMode === 'webhook') {
+    const webhookUrl = process.env.WEBHOOK_URL;
+    if (!webhookUrl) {
+      console.error('❌ WEBHOOK_URL environment variable is required for webhook mode');
+      process.exit(1);
+    }
+    const port = parseInt(process.env.PORT || '3000', 10);
+    await startWebhookMode(botToken, webhookUrl, port);
+  } else {
+    await startPollingMode(botToken);
+  }
+}
+
+main().catch((error) => {
+  console.error('Failed to start bot:', error);
+  process.exit(1);
+});
 `;
 
 const HANDLERS_INDEX_CONTENT = `/**

@@ -16,6 +16,10 @@
     "./core": {
       "import": "./dist/core/index.js",
       "types": "./dist/core/index.d.ts"
+    },
+    "./bot": {
+      "import": "./dist/bot/index.js",
+      "types": "./dist/bot/index.d.ts"
     }
   },
   "files": [
