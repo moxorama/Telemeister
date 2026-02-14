@@ -3,22 +3,28 @@
   "version": "0.0.1",
   "description": "TypeScript Telegram Bot Boilerplate with XState",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/core/index.js",
+  "types": "./dist/core/index.d.ts",
+  "bin": {
+    "telemeister": "./bin/telemeister.js"
+  },
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": "./dist/core/index.js",
+      "types": "./dist/core/index.d.ts"
     },
-    "./builder": {
-      "import": "./dist/builder.js",
-      "types": "./dist/builder.d.ts"
-    },
-    "./types": {
-      "import": "./dist/types.js",
-      "types": "./dist/types.d.ts"
+    "./core": {
+      "import": "./dist/core/index.js",
+      "types": "./dist/core/index.d.ts"
     }
   },
+  "files": [
+    "bin/",
+    "dist/",
+    "templates/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
@@ -35,11 +41,17 @@
     "webhook:set": "tsx scripts/set-webhook.ts",
     "webhook:delete": "tsx scripts/delete-webhook.ts",
     "webhook:info": "tsx scripts/webhook-info.ts",
-    "state:add": "tsx scripts/state.ts state:add",
-    "state:delete": "tsx scripts/state.ts state:delete",
-    "state:sync": "tsx scripts/state.ts state:sync",
-    "state:transition:add": "tsx scripts/state.ts state:transition:add",
-    "state:transition:delete": "tsx scripts/state.ts state:transition:delete",
+    "telemeister:state:add": "tsx src/cli/cli.ts state:add",
+    "telemeister:state:delete": "tsx src/cli/cli.ts state:delete",
+    "telemeister:state:sync": "tsx src/cli/cli.ts state:sync",
+    "telemeister:state:transition:add": "tsx src/cli/cli.ts state:transition:add",
+    "telemeister:state:transition:delete": "tsx src/cli/cli.ts state:transition:delete",
+    "telemeister:create-bot": "tsx src/cli/cli.ts create-bot",
+    "state:add": "telemeister state:add",
+    "state:delete": "telemeister state:delete",
+    "state:sync": "telemeister state:sync",
+    "state:transition:add": "telemeister state:transition:add",
+    "state:transition:delete": "telemeister state:transition:delete",
     "prepublishOnly": "npm run build",
     "prepare": "husky",
     "lint": "eslint src/ scripts/",

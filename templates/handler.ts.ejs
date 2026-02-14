@@ -1,5 +1,5 @@
-import { appBuilder, type AppContext } from '../../core/index.js';
-<% if (transitionStates.length > 0) { %>import type { <%= pascalCase(stateName) %>Transitions } from '../../bot-state-types.js';<% } %>
+import { appBuilder, type AppContext } from 'telemeister/core';
+<% if (transitionStates.length > 0) { %>import type { <%= pascalCase(stateName) %>Transitions } from '../bot-state-types.js';<% } %>
 
 /**
  * <%= stateName %> State Handler

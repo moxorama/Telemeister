@@ -1,11 +1,13 @@
 # Telemeister
 
-A TypeScript Telegram Bot Boilerplate with [Grammy](https://grammy.dev), XState-powered Finite State Machines (FSM), Prisma ORM for persistence, and a type-safe builder pattern for defining conversation flows.
+A TypeScript Telegram Bot Framework with [Grammy](https://grammy.dev), XState-powered Finite State Machines (FSM), Prisma ORM for persistence, and a type-safe builder pattern for defining conversation flows.
 
 **Goal**: Build bot infrastructure with explicit structure that allows an LLM to build and verify bots from text descriptions, and detect inconsistencies in those descriptions.
 
 ## Features
 
+- **NPM Package**: Install as a dependency to any bot project
+- **Project Scaffolding**: `npx telemeister create-bot` creates new projects
 - **Grammy Bot Framework**: Modern, TypeScript-first Telegram Bot API library
 - **XState FSM**: Compact, maintainable state machines using XState's "states as data" pattern
 - **Type-Safe State Transitions**: Full TypeScript support with strict transition types
@@ -20,13 +22,15 @@ A TypeScript Telegram Bot Boilerplate with [Grammy](https://grammy.dev), XState-
 
 ## Quick Start
 
-### 1. Installation
+### Create a New Bot
 
 ```bash
+npx telemeister create-bot my-bot
+cd my-bot
 npm install
 ```
 
-### 2. Environment Setup
+### Environment Setup
 
 ```bash
 cp .env.example .env
@@ -45,7 +49,7 @@ DATABASE_URL="file:./dev.db"
 # DATABASE_URL="mysql://user:password@localhost:3306/dbname"
 ```
 
-### 3. Database Setup
+### Database Setup
 
 **Generate Prisma Client:**
 ```bash
@@ -61,7 +65,7 @@ npm run db:migrate
 npm run db:deploy
 ```
 
-### 4. Run the Bot
+### Run the Bot
 
 **Polling mode (development):**
 ```bash
@@ -80,41 +84,29 @@ BOT_MODE=webhook npm run dev
 ## Project Structure
 
 ```
-src/
-├── bot.json                 # State machine configuration (source of truth)
-├── bot-state-types.ts       # Auto-generated types (DO NOT EDIT)
-├── bot-diagram.md           # Auto-generated Mermaid diagram
-├── bot-diagram.png          # Auto-generated diagram image
-├── core/                    # Core boilerplate code
-│   ├── index.ts            # Main exports
-│   ├── types.ts            # Core TypeScript types
-│   ├── builder.ts          # BotBuilder class
-│   └── compact-machine.ts  # XState machine
-├── bot/
-│   ├── polling.ts          # Polling mode implementation
-│   └── webhook.ts          # Webhook mode implementation
-├── handlers/               # Your state handlers
-│   ├── index.ts           # Handler imports
-│   ├── idle/              # Idle state handler
-│   ├── welcome/           # Welcome state handler
-│   └── menu/              # Menu state handler
-├── database.ts            # Database functions (Prisma)
-└── generated/prisma/      # Generated Prisma Client
-scripts/
-├── state.ts               # State management CLI
-└── templates/
-    └── handler.ts.ejs     # Handler template
-prisma/
-├── schema.prisma          # Database schema (single source of truth)
-├── config.ts              # Prisma configuration
-└── migrations/            # Migration files
+my-bot/
+├── bot.json                 # State machine configuration (source of truth, gitignored)
+├── src/
+│   ├── bot-state-types.ts   # Auto-generated types (DO NOT EDIT)
+│   ├── bot-diagram.md       # Auto-generated Mermaid diagram
+│   ├── bot-diagram.png      # Auto-generated diagram image
+│   ├── handlers/            # Your state handlers
+│   │   ├── index.ts        # Handler imports
+│   │   ├── idle/           # Idle state handler
+│   │   ├── welcome/        # Welcome state handler
+│   │   └── menu/           # Menu state handler
+│   └── index.ts            # Bot entry point
+├── prisma/
+│   └── schema.prisma       # Database schema
+├── .env                    # Environment variables (gitignored)
+└── package.json
 ```
 
 ## State Management
 
 ### State Machine Configuration
 
-The `src/bot.json` file is the source of truth for your state machine:
+The `bot.json` file is the source of truth for your state machine:
 
 ```json
 {
@@ -130,20 +122,26 @@ Each key is a state, and the array contains valid transition targets.
 
 | Command | Description |
 |---------|-------------|
-| `npm run state:add -- <name>` | Add a new state + create handler |
-| `npm run state:delete -- <name>` | Delete a state (with safety checks) |
-| `npm run state:sync` | Sync types + create missing handlers |
-| `npm run state:transition:add -- <from> <to>` | Add a transition |
-| `npm run state:transition:delete -- <from> <to>` | Delete a transition |
+| `telemeister state:add <name>` | Add a new state + create handler |
+| `telemeister state:delete <name>` | Delete a state (with safety checks) |
+| `telemeister state:sync` | Sync types + create missing handlers |
+| `telemeister state:transition:add <from> <to>` | Add a transition |
+| `telemeister state:transition:delete <from> <to>` | Delete a transition |
+
+Or use npm scripts:
+```bash
+npm run state:add -- settings
+npm run state:sync
+```
 
 ### Adding a New State
 
 ```bash
-npm run state:add -- collectEmail
+telemeister state:add collectEmail
 ```
 
 This command:
-- Adds `"collectEmail": []` to `src/bot.json`
+- Adds `"collectEmail": []` to `bot.json`
 - Creates `src/handlers/collectEmail/index.ts` with a template
 - Updates `src/handlers/index.ts` with the import
 - Regenerates `src/bot-state-types.ts`
@@ -152,7 +150,7 @@ This command:
 ### Adding Transitions
 
 ```bash
-npm run state:transition:add -- collectEmail completed
+telemeister state:transition:add collectEmail completed
 ```
 
 This updates `bot.json`, regenerates types and diagrams.
@@ -166,19 +164,19 @@ Safety checks prevent accidental deletion:
 
 ```bash
 # Remove transitions first
-npm run state:transition:delete -- collectEmail completed
+telemeister state:transition:delete collectEmail completed
 
 # Then empty the handler folder or move files
 rm -rf src/handlers/collectEmail
 
 # Now delete the state
-npm run state:delete -- collectEmail
+telemeister state:delete collectEmail
 ```
 
 ### Syncing
 
 ```bash
-npm run state:sync
+telemeister state:sync
 ```
 
 This regenerates:
@@ -214,8 +212,8 @@ export type WelcomeTransitions = Promise<StateTransitions['welcome']>;
 Handlers use generated types for strict return type checking:
 
 ```typescript
-import { appBuilder, type AppContext } from '../../core/index.js';
-import type { MenuTransitions } from '../../bot-state-types.js';
+import { appBuilder, type AppContext } from 'telemeister/core';
+import type { MenuTransitions } from './bot-state-types.js';
 
 appBuilder
   .forState('menu')
@@ -415,6 +413,36 @@ states: {
 ```
 
 The actual state value is stored in `context.currentState`. The `bot.json` file is the source of truth for valid states and transitions.
+
+## Development
+
+### Developing the Telemeister Framework
+
+This repository contains the Telemeister framework source code.
+
+```bash
+# Clone and install
+git clone <repo>
+cd telemeister
+npm install
+
+# Build
+npm run build
+
+# Run CLI locally
+npm run telemeister:state:add -- settings
+
+# Or use tsx directly
+npx tsx src/cli/cli.ts state:add settings
+```
+
+### Publishing
+
+```bash
+npm run build
+npm version patch
+npm publish
+```
 
 ## Technology Stack
 
