@@ -44,8 +44,26 @@ export function createBot(botToken: string): Bot<BotContext> {
     const chatId = ctx.chat.id.toString();
 
     // Get or create user session
-    const userSession = await getOrCreateSession(telegramId, chatId);
+    const { session: userSession, isNew } = await getOrCreateSession(telegramId, chatId);
     ctx.session = userSession;
+
+    // Call onEnter for initial state if this is a new session
+    if (isNew) {
+      const handlerContext = createHandlerContext(ctx, userSession);
+      const nextState = await appBuilder.executeOnEnter(
+        userSession.currentState as AppStates,
+        handlerContext
+      );
+
+      // Handle transition from onEnter
+      if (nextState && nextState !== userSession.currentState) {
+        await transitionToState(ctx, userSession, nextState as AppStates, handlerContext);
+      } else {
+        // Save any state data changes
+        userSession.stateData =
+          handlerContext.getData<Record<string, unknown>>('__all') || userSession.stateData;
+      }
+    }
 
     return next();
   });
@@ -65,8 +83,8 @@ export function createBot(botToken: string): Bot<BotContext> {
       text
     );
 
-    // Handle state transition
-    if (nextState && nextState !== session.currentState) {
+    // Handle state transition (call onEnter even for same state)
+    if (nextState) {
       await transitionToState(ctx, session, nextState as AppStates, handlerContext);
     } else {
       // Save any state data changes

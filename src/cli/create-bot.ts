@@ -318,7 +318,7 @@ export async function createBot(botName: string | undefined): Promise<void> {
     version: '0.0.1',
     type: 'module',
     scripts: {
-      dev: 'tsx src/index.ts',
+      dev: 'tsx watch src/index.ts',
       build: 'tsc',
       start: 'node dist/index.js',
       'db:generate': 'prisma generate',

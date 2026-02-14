@@ -71,11 +71,19 @@ export class PrismaSessionAdapter implements StorageAdapter<SessionData> {
   }
 }
 
+export interface SessionResult {
+  session: SessionData;
+  isNew: boolean;
+}
+
 /**
  * Get or create user session
  * This helper ensures a user exists in the database before processing
  */
-export async function getOrCreateSession(telegramId: string, chatId: string): Promise<SessionData> {
+export async function getOrCreateSession(
+  telegramId: string,
+  chatId: string
+): Promise<SessionResult> {
   const existing = await getUserByTelegramId(telegramId);
 
   if (existing) {
@@ -84,10 +92,13 @@ export async function getOrCreateSession(telegramId: string, chatId: string): Pr
       : {};
 
     return {
-      currentState: existing.currentState,
-      stateData,
-      userId: existing.id,
-      chatId: existing.chatId,
+      session: {
+        currentState: existing.currentState,
+        stateData,
+        userId: existing.id,
+        chatId: existing.chatId,
+      },
+      isNew: false,
     };
   }
 
@@ -100,9 +111,12 @@ export async function getOrCreateSession(telegramId: string, chatId: string): Pr
   });
 
   return {
-    currentState: 'idle',
-    stateData: {},
-    userId: newUser.id,
-    chatId: newUser.chatId,
+    session: {
+      currentState: 'idle',
+      stateData: {},
+      userId: newUser.id,
+      chatId: newUser.chatId,
+    },
+    isNew: true,
   };
 }
