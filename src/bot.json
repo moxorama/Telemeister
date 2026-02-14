@@ -1,0 +1,5 @@
+{
+  "idle": ["welcome"],
+  "welcome": ["menu"],
+  "menu": ["welcome", "idle"]
+}

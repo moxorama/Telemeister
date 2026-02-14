@@ -1,4 +1,5 @@
 import { appBuilder, type AppContext } from '../../core/index.js';
+import type { MenuTransitions } from '../../bot-state-types.js';
 
 /**
  * menu State Handler
@@ -8,7 +9,7 @@ import { appBuilder, type AppContext } from '../../core/index.js';
 
 appBuilder
   .forState('menu')
-  .onEnter(async (context: AppContext) => {
+  .onEnter(async (context: AppContext): MenuTransitions => {
     const name = context.getData<string>('name') || 'User';
     await context.send(
       `📋 Menu for ${name}:\n\n` +
@@ -18,14 +19,13 @@ appBuilder
         'Type 1, 2, or 3'
     );
   })
-  .onResponse(async (context: AppContext, response) => {
+  .onResponse(async (context: AppContext, response): MenuTransitions => {
     const choice = response.trim();
 
     switch (choice) {
       case '1': {
         const name = context.getData<string>('name');
         await context.send(`Your name is: ${name}`);
-        // Stay in menu
         return;
       }
       case '2':
@@ -35,7 +35,6 @@ appBuilder
         return 'idle';
       default:
         await context.send('Please select 1, 2, or 3.');
-      // Stay in menu
     }
   });
 

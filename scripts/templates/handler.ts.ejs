@@ -1,0 +1,36 @@
+import { appBuilder, type AppContext } from '../../core/index.js';
+<% if (transitionStates.length > 0) { %>import type { <%= pascalCase(stateName) %>Transitions } from '../../bot-state-types.js';<% } %>
+
+/**
+ * <%= stateName %> State Handler
+ *
+ * This file defines the handlers for the "<%= stateName %>" state.
+ */
+
+appBuilder
+  .forState('<%= stateName %>')
+  .onEnter(async (context: AppContext) => {
+    // Called when user enters this state
+    // Can optionally return a state name to immediately transition
+
+    await context.send("Hello from <%= stateName %> state!");
+<% if (transitionStates.length > 0) { %>
+    // Available transitions: <%= transitionStates.join(', ') %>
+    // return "<%= transitionStates[0] %>"; // <%= pascalCase(stateName) %>Transitions
+<% } else { %>
+    // No transitions defined - add them with: npm run state:transition:add -- <%= stateName %> <target-state>
+<% } %>
+  })
+  .onResponse(async (context: AppContext, response) => {
+    // Called when user sends a message in this state
+    // Return a state name to transition, or nothing to stay
+
+    const text = response.trim();
+<% if (transitionStates.length > 0) { %>
+    // Available transitions: <%= transitionStates.join(', ') %>
+<% } %>
+    // Handle user response
+    await context.send(`You said: ${text}`);
+  });
+
+console.log('✅ State handler registered: <%= stateName %>');

@@ -9,5 +9,4 @@
 ### Investigations
 - Investigate session context and integration with db in session
 - Investigate script templates 
-- Investigate FMS in JSON and types generation
 - Investigate LLM skills for chatbots

@@ -7,12 +7,12 @@
 
 export { BotBuilder, botBuilder } from './builder.js';
 
-export type { AppStates } from './app-states.js';
+export type { AppStates } from '../bot-state-types.js';
+export type { StateTransitions } from '../bot-state-types.js';
 
 export { appBuilder } from './types.js';
 export type { AppContext } from './types.js';
 
-// Re-export core types for convenience
 export type {
   BotHandlerContext,
   BotState,

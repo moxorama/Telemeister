@@ -1,4 +1,5 @@
 import { appBuilder, type AppContext } from '../../core/index.js';
+import type { IdleTransitions } from '../../bot-state-types.js';
 
 /**
  * idle State Handler
@@ -9,23 +10,16 @@ import { appBuilder, type AppContext } from '../../core/index.js';
 
 appBuilder
   .forState('idle')
-  .onEnter(async (_context: AppContext) => {
-    // Called when user enters idle state
-    // This is typically the starting state for new users
-
+  .onEnter(async (_context: AppContext): IdleTransitions => {
     return 'welcome';
   })
-  .onResponse(async (context: AppContext, response) => {
-    // Called when user sends a message while in idle state
-    // Transition to welcome state to start the conversation flow
-
+  .onResponse(async (context: AppContext, response): IdleTransitions => {
     const trimmed = response.trim();
 
     if (trimmed === '/start' || trimmed.toLowerCase() === 'start') {
       return 'welcome';
     }
 
-    // Any message transitions to welcome state
     await context.send("Let's get started!");
     return 'welcome';
   });

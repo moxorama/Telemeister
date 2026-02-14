@@ -8,12 +8,15 @@ A TypeScript Telegram Bot Boilerplate with [Grammy](https://grammy.dev), XState-
 
 - **Grammy Bot Framework**: Modern, TypeScript-first Telegram Bot API library
 - **XState FSM**: Compact, maintainable state machines using XState's "states as data" pattern
-- **Type-Safe State Transitions**: Full TypeScript support with typed state returns
+- **Type-Safe State Transitions**: Full TypeScript support with strict transition types
+- **State Machine Configuration**: JSON-based state machine definition (`bot.json`)
+- **Auto-Generated Types**: TypeScript types generated from state machine config
+- **State Diagram Visualization**: Mermaid diagrams (MD + PNG) auto-generated
 - **Prisma ORM 7.x**: Modern database toolkit with driver adapters for SQLite and MySQL
 - **Single Schema**: One Prisma schema works for both SQLite (dev) and MySQL (production)
 - **Builder Pattern**: Fluent API for defining state handlers
 - **Dual Mode**: Supports both Polling and Webhook modes
-- **CLI Tools**: Built-in commands for managing states and webhooks
+- **CLI Tools**: Built-in commands for managing states, transitions, and webhooks
 
 ## Quick Start
 
@@ -78,115 +81,154 @@ BOT_MODE=webhook npm run dev
 
 ```
 src/
+├── bot.json                 # State machine configuration (source of truth)
+├── bot-state-types.ts       # Auto-generated types (DO NOT EDIT)
+├── bot-diagram.md           # Auto-generated Mermaid diagram
+├── bot-diagram.png          # Auto-generated diagram image
 ├── core/                    # Core boilerplate code
 │   ├── index.ts            # Main exports
 │   ├── types.ts            # Core TypeScript types
 │   ├── builder.ts          # BotBuilder class
-│   ├── app-states.ts       # AppStates union + typed builder
 │   └── compact-machine.ts  # XState machine
 ├── bot/
 │   ├── polling.ts          # Polling mode implementation
 │   └── webhook.ts          # Webhook mode implementation
 ├── handlers/               # Your state handlers
 │   ├── index.ts           # Handler imports
-│   ├── welcome.ts         # Welcome state
-│   └── menu.ts            # Menu state
+│   ├── idle/              # Idle state handler
+│   ├── welcome/           # Welcome state handler
+│   └── menu/              # Menu state handler
 ├── database.ts            # Database functions (Prisma)
 └── generated/prisma/      # Generated Prisma Client
+scripts/
+├── state.ts               # State management CLI
+└── templates/
+    └── handler.ts.ejs     # Handler template
 prisma/
 ├── schema.prisma          # Database schema (single source of truth)
 ├── config.ts              # Prisma configuration
 └── migrations/            # Migration files
 ```
 
-## Database Configuration
+## State Management
 
-### Switching Between SQLite and MySQL
+### State Machine Configuration
 
-**1. Update `prisma/schema.prisma`:**
-```prisma
-datasource db {
-  provider = "sqlite"  // Change to "mysql" for production
+The `src/bot.json` file is the source of truth for your state machine:
+
+```json
+{
+  "idle": ["welcome"],
+  "welcome": ["menu"],
+  "menu": ["welcome", "idle"]
 }
 ```
 
-**2. Update `.env`:**
-```bash
-# SQLite (development)
-DATABASE_URL="file:./dev.db"
+Each key is a state, and the array contains valid transition targets.
 
-# MySQL (production)
-DATABASE_URL="mysql://user:password@localhost:3306/dbname"
-```
+### CLI Commands
 
-**3. Regenerate and migrate:**
-```bash
-npm run db:generate
-npm run db:migrate
-```
+| Command | Description |
+|---------|-------------|
+| `npm run state:add -- <name>` | Add a new state + create handler |
+| `npm run state:delete -- <name>` | Delete a state (with safety checks) |
+| `npm run state:sync` | Sync types + create missing handlers |
+| `npm run state:transition:add -- <from> <to>` | Add a transition |
+| `npm run state:transition:delete -- <from> <to>` | Delete a transition |
 
-### Database Commands
+### Adding a New State
 
 ```bash
-npm run db:generate    # Generate Prisma Client after schema changes
-npm run db:migrate     # Create and apply migrations (development)
-npm run db:deploy      # Apply migrations in production
-npm run db:push        # Push schema changes without migration files
-npm run db:studio      # Open Prisma Studio (database GUI)
-```
-
-## Creating States
-
-### 1. Add a New State
-
-```bash
-npm run state:add -- collectName
+npm run state:add -- collectEmail
 ```
 
 This command:
-- Creates `src/handlers/collectName.ts` with a template
-- Adds `"collectName"` to the `AppStates` union in `src/core/app-states.ts`
+- Adds `"collectEmail": []` to `src/bot.json`
+- Creates `src/handlers/collectEmail/index.ts` with a template
 - Updates `src/handlers/index.ts` with the import
+- Regenerates `src/bot-state-types.ts`
+- Regenerates `src/bot-diagram.md` and `src/bot-diagram.png`
 
-### 2. Define Handlers
+### Adding Transitions
 
-Edit the generated file:
-
-```typescript
-import { appBuilder, type AppContext } from "../core/index.js";
-
-appBuilder
-  .forState("collectName")
-  .onEnter(async (context: AppContext) => {
-    await context.send("What's your name?");
-  })
-  .onResponse(async (context: AppContext, response) => {
-    const name = response.trim();
-    
-    if (name.length < 2) {
-      await context.send("Name must be at least 2 characters.");
-      return; // Stay in current state
-    }
-    
-    context.setData("name", name);
-    return "menu"; // ✅ Type-safe: only AppStates allowed
-  });
+```bash
+npm run state:transition:add -- collectEmail completed
 ```
 
-### 3. Centralized State Types
+This updates `bot.json`, regenerates types and diagrams.
 
-All states are defined in `src/core/app-states.ts`:
+### Deleting States
+
+Safety checks prevent accidental deletion:
+- Cannot delete if handler folder is non-empty
+- Cannot delete if state has outgoing transitions
+- Cannot delete if state has incoming transitions
+
+```bash
+# Remove transitions first
+npm run state:transition:delete -- collectEmail completed
+
+# Then empty the handler folder or move files
+rm -rf src/handlers/collectEmail
+
+# Now delete the state
+npm run state:delete -- collectEmail
+```
+
+### Syncing
+
+```bash
+npm run state:sync
+```
+
+This regenerates:
+- `src/bot-state-types.ts` - TypeScript types from `bot.json`
+- `src/bot-diagram.md` - Mermaid diagram
+- `src/bot-diagram.png` - PNG image (requires mermaid-cli)
+- Creates missing handler folders (never overwrites existing)
+
+## Auto-Generated Types
+
+The `src/bot-state-types.ts` file is auto-generated:
 
 ```typescript
-export type AppStates =
-  | "idle"
-  | "welcome"
-  | "menu"
-  | "collectName"  // Added automatically by npm run state:add
-  | "completed";
+// Auto-generated by state:sync - DO NOT EDIT
+
+export type AppStates = 'idle' | 'menu' | 'welcome';
+
+export type StateTransitions = {
+  idle: 'welcome' | void;
+  menu: 'idle' | 'welcome' | void;
+  welcome: 'menu' | void;
+};
+
+export type IdleTransitions = Promise<StateTransitions['idle']>;
+export type MenuTransitions = Promise<StateTransitions['menu']>;
+export type WelcomeTransitions = Promise<StateTransitions['welcome']>;
 ```
 
 ## Handler API
+
+### Strict Transition Types
+
+Handlers use generated types for strict return type checking:
+
+```typescript
+import { appBuilder, type AppContext } from '../../core/index.js';
+import type { MenuTransitions } from '../../bot-state-types.js';
+
+appBuilder
+  .forState('menu')
+  .onEnter(async (context: AppContext): MenuTransitions => {
+    await context.send('Welcome to menu!');
+    // Can only return 'idle', 'welcome', or void
+  })
+  .onResponse(async (context: AppContext, response): MenuTransitions => {
+    if (response === 'back') return 'welcome'; // ✅ Valid
+    if (response === 'exit') return 'idle';    // ✅ Valid
+    return 'invalid';  // ❌ Type error - not in transitions
+  });
+```
 
 ### Context Methods
 
@@ -228,30 +270,59 @@ interface BotHandlerContext<TState> {
 })
 ```
 
-## Type Safety
+## State Diagram
 
-### Full Type Safety with AppStates
+Auto-generated visualizations are updated on every state/transition change:
 
-```typescript
-import { appBuilder, type AppContext } from "../core/index.js";
+**`src/bot-diagram.md`:**
+```markdown
+# Bot State Diagram
 
-appBuilder
-  .forState("welcome")
-  .onEnter(async (context: AppContext) => {
-    // context.currentState is typed as AppStates
-    // return values are checked against AppStates
-    return "menu";     // ✅ Valid
-    return "invalid";  // ❌ Type error
-  });
+```mermaid
+stateDiagram-v2
+    idle --> welcome
+    welcome --> menu
+    menu --> welcome
+    menu --> idle
+```
 ```
 
-### Untyped Option (Quick Prototyping)
+**`src/bot-diagram.png`:** PNG image rendered by mermaid-cli.
 
-```typescript
-import { BotBuilder } from "../core/index.js";
+## Database Configuration
 
-const untypedBuilder = new BotBuilder();
-untypedBuilder.forState("anyState").onEnter(...); // No type checking
+### Switching Between SQLite and MySQL
+
+**1. Update `prisma/schema.prisma`:**
+```prisma
+datasource db {
+  provider = "sqlite"  // Change to "mysql" for production
+}
+```
+
+**2. Update `.env`:**
+```bash
+# SQLite (development)
+DATABASE_URL="file:./dev.db"
+
+# MySQL (production)
+DATABASE_URL="mysql://user:password@localhost:3306/dbname"
+```
+
+**3. Regenerate and migrate:**
+```bash
+npm run db:generate
+npm run db:migrate
+```
+
+### Database Commands
+
+```bash
+npm run db:generate    # Generate Prisma Client after schema changes
+npm run db:migrate     # Create and apply migrations (development)
+npm run db:deploy      # Apply migrations in production
+npm run db:push        # Push schema changes without migration files
+npm run db:studio      # Open Prisma Studio (database GUI)
 ```
 
 ## Webhook Commands
@@ -343,7 +414,7 @@ states: {
 }
 ```
 
-The actual state value is stored in `context.currentState`. The builder pattern is the source of truth for valid states.
+The actual state value is stored in `context.currentState`. The `bot.json` file is the source of truth for valid states and transitions.
 
 ## Technology Stack
 
@@ -353,6 +424,8 @@ The actual state value is stored in `context.currentState`. The builder pattern 
   - **Driver Adapters**: Required adapters for database connections (`@prisma/adapter-better-sqlite3`, `@prisma/adapter-mariadb`)
   - **ESM-Only**: Native ES module support
   - **Generated Client in Source**: Better IDE support and file watching
+- **[EJS](https://ejs.co)**: Template engine for handler generation
+- **[Mermaid CLI](https://github.com/mermaid-js/mermaid-cli)**: Diagram generation
 
 ## License
 
