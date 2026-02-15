@@ -7,8 +7,8 @@
 
 export { BotBuilder, botBuilder } from './builder.js';
 
-export type { AppStates } from '../bot-state-types.js';
-export type { StateTransitions } from '../bot-state-types.js';
+// Note: AppStates and StateTransitions should be imported from your generated bot-state-types.ts
+// Example: import type { AppStates, StateTransitions } from './bot-state-types.js';
 
 export { appBuilder } from './types.js';
 export type { AppContext } from './types.js';
@@ -20,3 +20,13 @@ export type {
   ResponseHandler,
   StateHandlers,
 } from './types.js';
+
+// Re-export bot runtime for convenience
+// Full exports available at 'telemeister/core/bot'
+export {
+  startPollingMode,
+  startWebhookMode,
+  setWebhook,
+  deleteWebhook,
+  getWebhookInfo,
+} from './bot/index.js';

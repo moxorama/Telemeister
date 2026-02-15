@@ -4,255 +4,22 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
+import ejs from 'ejs';
+import { stateSync } from './state-manager.js';
 
-const DEFAULT_BOT_JSON = {
-  idle: ['welcome'],
-  welcome: ['menu'],
-  menu: ['welcome'],
-};
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const GITIGNORE_CONTENT = `# Dependencies
-node_modules/
-
-# Environment variables
-.env
-.env.local
-.env.*.local
-
-# Build output
-dist/
-
-# Bot configuration (generated)
-bot.json
-src/bot-state-types.ts
-src/bot-diagram.md
-src/bot-diagram.png
-
-# Prisma
-prisma/*.db
-prisma/*.db-journal
-
-# Logs
-*.log
-
-# OS
-.DS_Store
-Thumbs.db
-`;
-
-const TS_CONFIG_CONTENT = `{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "esModuleInterop": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
-}
-`;
-
-const INDEX_TS_CONTENT = `/**
- * Bot entry point
- */
-
-import 'dotenv/config';
-import { startPollingMode, startWebhookMode } from 'telemeister/bot';
-import './handlers/index.js';
-
-const botToken = process.env.BOT_TOKEN;
-if (!botToken) {
-  console.error('❌ BOT_TOKEN environment variable is required');
-  process.exit(1);
+function loadTemplate(templateName: string): string {
+  const templatePath = path.join(__dirname, '..', 'templates', templateName);
+  return fs.readFileSync(templatePath, 'utf-8');
 }
 
-const botMode = process.env.BOT_MODE || 'polling';
-
-async function main(): Promise<void> {
-  console.log(\`🚀 Starting bot in \${botMode} mode...\`);
-  
-  if (botMode === 'webhook') {
-    const webhookUrl = process.env.WEBHOOK_URL;
-    if (!webhookUrl) {
-      console.error('❌ WEBHOOK_URL environment variable is required for webhook mode');
-      process.exit(1);
-    }
-    const port = parseInt(process.env.PORT || '3000', 10);
-    await startWebhookMode(botToken, webhookUrl, port);
-  } else {
-    await startPollingMode(botToken);
-  }
+function renderTemplate(templateName: string, data: Record<string, unknown> = {}): string {
+  const template = loadTemplate(templateName);
+  return ejs.render(template, data);
 }
-
-main().catch((error) => {
-  console.error('Failed to start bot:', error);
-  process.exit(1);
-});
-`;
-
-const HANDLERS_INDEX_CONTENT = `/**
- * State Handlers Index
- *
- * Import all your state handler files here.
- */
-
-import './idle/index.js';
-import './welcome/index.js';
-import './menu/index.js';
-`;
-
-const IDLE_HANDLER_CONTENT = `import { appBuilder, type AppContext } from 'telemeister/core';
-import type { IdleTransitions } from '../bot-state-types.js';
-
-appBuilder
-  .forState('idle')
-  .onEnter(async (context: AppContext): IdleTransitions => {
-    // Bot is idle, ready for user interaction
-    // This state is typically the entry point
-    return 'welcome';
-  })
-  .onResponse(async (context: AppContext, response): IdleTransitions => {
-    // Handle user messages when in idle state
-    const text = response.trim();
-    await context.send('Welcome! Type anything to start.');
-  });
-
-console.log('✅ State handler registered: idle');
-`;
-
-const WELCOME_HANDLER_CONTENT = `import { appBuilder, type AppContext } from 'telemeister/core';
-import type { WelcomeTransitions } from '../bot-state-types.js';
-
-appBuilder
-  .forState('welcome')
-  .onEnter(async (context: AppContext): WelcomeTransitions => {
-    await context.send('Hello! Welcome to the bot!');
-    return 'menu';
-  })
-  .onResponse(async (context: AppContext, response): WelcomeTransitions => {
-    const text = response.trim();
-    await context.send('Welcome! Choose an option:');
-  });
-
-console.log('✅ State handler registered: welcome');
-`;
-
-const MENU_HANDLER_CONTENT = `import { appBuilder, type AppContext } from 'telemeister/core';
-import type { MenuTransitions } from '../bot-state-types.js';
-
-appBuilder
-  .forState('menu')
-  .onEnter(async (context: AppContext): MenuTransitions => {
-    await context.send('Main Menu\\n\\n1. Start over\\n2. Exit');
-  })
-  .onResponse(async (context: AppContext, response): MenuTransitions => {
-    const text = response.trim();
-    
-    if (text === '1') {
-      return 'welcome';
-    }
-    
-    await context.send('Menu option selected: ' + text);
-  });
-
-console.log('✅ State handler registered: menu');
-`;
-
-const ENV_CONTENT = `# Telegram Bot Configuration
-BOT_TOKEN=your_bot_token_here
-
-# Database (SQLite for development)
-DATABASE_URL=file:./prisma/dev.db
-`;
-
-const PRISMA_SCHEMA_CONTENT = `generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "sqlite"
-}
-
-model User {
-  id           Int       @id @default(autoincrement())
-  telegramId   String    @unique
-  chatId       String
-  currentState String    @default("idle")
-  updatedAt    DateTime  @updatedAt
-  info         UserInfo?
-
-  @@index([currentState])
-}
-
-model UserInfo {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stateData String   @default("{}")
-}
-`;
-
-const PRISMA_CONFIG_CONTENT = `import 'dotenv/config';
-import { defineConfig, env } from 'prisma/config';
-
-export default defineConfig({
-  schema: 'prisma/schema.prisma',
-  datasource: {
-    url: env('DATABASE_URL'),
-  },
-});`;
-
-const README_CONTENT = (botName: string) => `# ${botName}
-
-Telegram bot built with Telemeister.
-
-## Getting Started
-
-1. Install dependencies:
-   \`\`\`bash
-   npm install
-   \`\`\`
-
-2. Set up environment variables:
-   \`\`\`bash
-   cp .env.example .env
-   # Edit .env and add your bot token
-   \`\`\`
-
-3. Set up the database:
-   \`\`\`bash
-   npm run db:generate
-   npm run db:migrate
-   \`\`\`
-
-4. Run the bot:
-   \`\`\`bash
-   npm run dev
-   \`\`\`
-
-## State Management
-
-- \`npm run state:add <name\u003e\` - Add a new state
-- \`npm run state:delete <name\u003e\` - Delete a state
-- \`npm run state:sync\` - Sync types and handlers
-- \`npm run state:transition:add <from> <to>\` - Add transition
-- \`npm run state:transition:delete <from> <to>\` - Delete transition
-
-## Project Structure
-
-- \`bot.json\` - State machine configuration (do not commit)
-- \`src/handlers/\` - State handler implementations
-- \`src/bot-state-types.ts\` - Generated types (do not edit)
-`;
 
 export async function createBot(botName: string | undefined): Promise<void> {
   if (!botName) {
@@ -281,77 +48,85 @@ export async function createBot(botName: string | undefined): Promise<void> {
 
   // Create directory structure
   fs.mkdirSync(targetDir, { recursive: true });
-  fs.mkdirSync(path.join(targetDir, 'src', 'handlers', 'idle'), { recursive: true });
-  fs.mkdirSync(path.join(targetDir, 'src', 'handlers', 'welcome'), { recursive: true });
-  fs.mkdirSync(path.join(targetDir, 'src', 'handlers', 'menu'), { recursive: true });
+  fs.mkdirSync(path.join(targetDir, 'src', 'handlers'), { recursive: true });
   fs.mkdirSync(path.join(targetDir, 'prisma'), { recursive: true });
 
-  // Create files
-  fs.writeFileSync(path.join(targetDir, '.gitignore'), GITIGNORE_CONTENT);
-  fs.writeFileSync(path.join(targetDir, 'tsconfig.json'), TS_CONFIG_CONTENT);
-  fs.writeFileSync(path.join(targetDir, '.env.example'), ENV_CONTENT);
+  // Create files from templates
+  fs.writeFileSync(path.join(targetDir, '.gitignore'), loadTemplate('gitignore.ejs'));
+  fs.writeFileSync(path.join(targetDir, 'tsconfig.json'), loadTemplate('tsconfig.json.ejs'));
+  fs.writeFileSync(path.join(targetDir, '.env.example'), loadTemplate('env.example.ejs'));
+  fs.writeFileSync(path.join(targetDir, 'bot.json'), loadTemplate('bot.json.ejs'));
+  fs.writeFileSync(path.join(targetDir, 'src', 'index.ts'), loadTemplate('index.ts.ejs'));
   fs.writeFileSync(
-    path.join(targetDir, 'bot.json'),
-    JSON.stringify(DEFAULT_BOT_JSON, null, 2) + '\n'
+    path.join(targetDir, 'prisma', 'schema.prisma'),
+    loadTemplate('prisma-schema.prisma.ejs')
   );
-  fs.writeFileSync(path.join(targetDir, 'src', 'index.ts'), INDEX_TS_CONTENT);
-  fs.writeFileSync(path.join(targetDir, 'src', 'handlers', 'index.ts'), HANDLERS_INDEX_CONTENT);
-  fs.writeFileSync(
-    path.join(targetDir, 'src', 'handlers', 'idle', 'index.ts'),
-    IDLE_HANDLER_CONTENT
-  );
-  fs.writeFileSync(
-    path.join(targetDir, 'src', 'handlers', 'welcome', 'index.ts'),
-    WELCOME_HANDLER_CONTENT
-  );
-  fs.writeFileSync(
-    path.join(targetDir, 'src', 'handlers', 'menu', 'index.ts'),
-    MENU_HANDLER_CONTENT
-  );
-  fs.writeFileSync(path.join(targetDir, 'prisma', 'schema.prisma'), PRISMA_SCHEMA_CONTENT);
-  fs.writeFileSync(path.join(targetDir, 'prisma.config.ts'), PRISMA_CONFIG_CONTENT);
-  fs.writeFileSync(path.join(targetDir, 'README.md'), README_CONTENT(botName));
+  fs.writeFileSync(path.join(targetDir, 'prisma.config.ts'), loadTemplate('prisma.config.ts.ejs'));
 
-  // Create package.json with telemeister dependency
-  const packageJson = {
-    name: botName,
-    version: '0.0.1',
-    type: 'module',
-    scripts: {
-      dev: 'tsx watch src/index.ts',
-      build: 'tsc',
-      start: 'node dist/index.js',
-      'db:generate': 'prisma generate',
-      'db:migrate': 'prisma migrate dev',
-      'db:studio': 'prisma studio',
-      'state:add': 'telemeister state:add',
-      'state:delete': 'telemeister state:delete',
-      'state:sync': 'telemeister state:sync',
-      'state:transition:add': 'telemeister state:transition:add',
-      'state:transition:delete': 'telemeister state:transition:delete',
-    },
-    dependencies: {
-      telemeister: '^0.1.3',
-    },
-    devDependencies: {
-      '@types/node': '^20.0.0',
-      prisma: '^7.0.0',
-      tsx: '^4.0.0',
-      typescript: '^5.0.0',
-    },
-  };
+  // Create database file
+  fs.mkdirSync(path.join(targetDir, 'src', 'lib'), { recursive: true });
+  fs.writeFileSync(
+    path.join(targetDir, 'src', 'lib', 'database.ts'),
+    loadTemplate('database.ts.ejs')
+  );
 
+  // Note: Bot runtime files (session.ts, polling.ts, webhook.ts) are now provided by the framework
+  // in 'telemeister/core/bot' and don't need to be generated
+
+  fs.writeFileSync(path.join(targetDir, 'README.md'), renderTemplate('README.md.ejs', { botName }));
   fs.writeFileSync(
     path.join(targetDir, 'package.json'),
-    JSON.stringify(packageJson, null, 2) + '\n'
+    renderTemplate('package.json.ejs', { botName })
   );
+
+  // Sync handlers and types from bot.json
+  process.chdir(targetDir);
+  await stateSync();
+
+  // Run automated setup commands
+  console.log('\n📦 Installing dependencies...');
+  try {
+    execSync('npm install', { stdio: 'inherit' });
+    console.log('✅ Dependencies installed\n');
+  } catch {
+    console.error('❌ Failed to install dependencies. Please run "npm install" manually.\n');
+    process.exit(1);
+  }
+
+  // Use a temporary SQLite database for initial setup
+  const tempDbUrl = 'file:./dev.db';
+
+  console.log('🗄️  Generating Prisma client...');
+  try {
+    execSync('npm run db:generate', {
+      stdio: 'inherit',
+      env: { ...process.env, DATABASE_URL: tempDbUrl },
+    });
+    console.log('✅ Prisma client generated\n');
+  } catch {
+    console.error(
+      '❌ Failed to generate Prisma client. Please run "npm run db:generate" manually.\n'
+    );
+    process.exit(1);
+  }
+
+  console.log('🗄️  Creating initial database migration...');
+  try {
+    execSync('npx prisma migrate dev --name init', {
+      stdio: 'inherit',
+      env: { ...process.env, DATABASE_URL: tempDbUrl },
+    });
+    console.log('✅ Database migration created\n');
+  } catch {
+    console.error(
+      '❌ Failed to create database migration. Please run "npm run db:migrate" manually.\n'
+    );
+    process.exit(1);
+  }
 
   console.log(`✅ Bot "${botName}" created successfully!\n`);
   console.log('Next steps:');
   console.log(`  cd ${botName}`);
-  console.log('  npm install');
-  console.log('  cp .env.example .env  # Add your bot token');
-  console.log('  npm run db:generate');
-  console.log('  npm run db:migrate');
+  console.log('  cp .env.example .env  # Add your bot token from @BotFather');
   console.log('  npm run dev');
 }

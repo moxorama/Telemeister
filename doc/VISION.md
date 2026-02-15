@@ -1,12 +1,22 @@
-### TODO
-- Eslint
-- Add callback support
-- Add forChat((chatId) => boolean) filter for handlers
-- Investigate templating engine, probably move handlers to folders from files
-- Example of structured data like keyboard or pull
-- Handle uploaded files / images
+### IO
+- [ ] Add callback support
+- [ ] Other types of responses - inline keyboard, photo, poll and so on
+- [ ] Handle uploaded files / images
+- [ ] Add forChat((chatId) => boolean) filter for handlers
 
 ### Investigations
-- Investigate session context and integration with db in session
-- Investigate script templates 
-- Investigate LLM skills for chatbots
+- [ ] Is there simplier prisma alternatives - without client generating
+- [ ] How to pass data to database, write docs
+- [ ] Server with API commands for bot
+- [ ] Release npm github
+
+### Testing
+- [ ] JSON modification testing
+- [ ] Deploy testing
+- [ ] Handler testing (maybe real bot)?
+- [ ] Testing PR 
+
+### Documentation
+- [ ] More compact readme
+- [ ] Bot documentation
+- [ ] Framework documentation

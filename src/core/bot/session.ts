@@ -1,44 +1,36 @@
 /**
- * Grammy Session Adapter for Prisma Database
+ * Grammy Session Adapter
  *
- * This adapter integrates Grammy's session system with the Prisma database,
+ * This adapter integrates Grammy's session system with the database,
  * allowing user state to persist across restarts.
  */
 
 import type { StorageAdapter } from 'grammy';
-import { getUserByTelegramId, createOrUpdateUser, updateUserState } from '../database.js';
+import type { DatabaseAdapter, SessionData, SessionResult } from './types.js';
+
+// Re-export types for convenience
+export type { SessionData, SessionResult };
 
 /**
- * Session data stored per user
+ * Session storage adapter for Grammy using injected database
  */
-export interface SessionData {
-  /** Current FSM state */
-  currentState: string;
-  /** User-specific data storage */
-  stateData: Record<string, unknown>;
-  /** Internal user ID from database */
-  userId?: number;
-  /** Telegram chat ID */
-  chatId?: string;
-}
+export class SessionStorageAdapter implements StorageAdapter<SessionData> {
+  private database: DatabaseAdapter;
 
-/**
- * Prisma-backed session storage adapter for Grammy
- *
- * This adapter loads/saves session data from/to the database,
- * keyed by Telegram user ID.
- */
-export class PrismaSessionAdapter implements StorageAdapter<SessionData> {
+  constructor(database: DatabaseAdapter) {
+    this.database = database;
+  }
+
   /**
    * Read session data from database
    * @param key - Telegram user ID (as string)
    */
   async read(key: string): Promise<SessionData | undefined> {
-    const user = await getUserByTelegramId(key);
+    const user = await this.database.getUserByTelegramId(key);
     if (!user) return undefined;
 
     const stateData: Record<string, unknown> = user.info?.stateData
-      ? JSON.parse(user.info.stateData as string)
+      ? JSON.parse(user.info.stateData)
       : {};
 
     return {
@@ -55,25 +47,17 @@ export class PrismaSessionAdapter implements StorageAdapter<SessionData> {
    * @param value - Session data to save
    */
   async write(key: string, value: SessionData): Promise<void> {
-    await updateUserState(key, value.currentState, value.stateData);
+    await this.database.updateUserState(key, value.currentState, value.stateData);
   }
 
   /**
-   * Delete session data (not typically used in bots)
+   * Delete session data (resets to idle state)
    * @param key - Telegram user ID (as string)
    */
   async delete(key: string): Promise<void> {
-    // Sessions are not deleted - user records persist
-    // This could be implemented if needed for GDPR compliance
-
     // Reset to idle state instead of deleting
-    await updateUserState(key, 'idle', {});
+    await this.database.updateUserState(key, 'idle', {});
   }
-}
-
-export interface SessionResult {
-  session: SessionData;
-  isNew: boolean;
 }
 
 /**
@@ -82,13 +66,14 @@ export interface SessionResult {
  */
 export async function getOrCreateSession(
   telegramId: string,
-  chatId: string
+  chatId: string,
+  database: DatabaseAdapter
 ): Promise<SessionResult> {
-  const existing = await getUserByTelegramId(telegramId);
+  const existing = await database.getUserByTelegramId(telegramId);
 
   if (existing) {
     const stateData: Record<string, unknown> = existing.info?.stateData
-      ? JSON.parse(existing.info.stateData as string)
+      ? JSON.parse(existing.info.stateData)
       : {};
 
     return {
@@ -103,7 +88,7 @@ export async function getOrCreateSession(
   }
 
   // Create new user
-  const newUser = await createOrUpdateUser({
+  const newUser = await database.createOrUpdateUser({
     telegramId,
     chatId,
     currentState: 'idle',

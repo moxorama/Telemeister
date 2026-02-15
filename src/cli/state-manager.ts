@@ -13,13 +13,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 function getProjectPaths(cwd: string) {
   return {
     srcDir: path.join(cwd, 'src'),
+    docDir: path.join(cwd, 'doc'),
     handlersDir: path.join(cwd, 'src', 'handlers'),
     botJsonPath: path.join(cwd, 'bot.json'),
     stateTypesPath: path.join(cwd, 'src', 'bot-state-types.ts'),
-    botDiagramMdPath: path.join(cwd, 'src', 'bot-diagram.md'),
-    botDiagramPngPath: path.join(cwd, 'src', 'bot-diagram.png'),
+    botDiagramMdPath: path.join(cwd, 'doc', 'bot-diagram.md'),
+    botDiagramPngPath: path.join(cwd, 'doc', 'bot-diagram.png'),
     // Templates are relative to the package root, not the CLI file
-    templatePath: path.join(__dirname, '..', '..', 'templates', 'handler.ts.ejs'),
+    templatePath: path.join(__dirname, '..', 'templates', 'handler.ts.ejs'),
   };
 }
 
@@ -147,9 +148,15 @@ ${mermaidCode}
 
 async function generateDiagram(config: BotConfig, cwd: string): Promise<void> {
   const paths = getProjectPaths(cwd);
+
+  // Ensure doc directory exists
+  if (!fs.existsSync(paths.docDir)) {
+    fs.mkdirSync(paths.docDir, { recursive: true });
+  }
+
   const mdContent = generateMermaidMarkdown(config);
   fs.writeFileSync(paths.botDiagramMdPath, mdContent);
-  console.log(`📝 Updated: src/bot-diagram.md`);
+  console.log(`📝 Updated: doc/bot-diagram.md`);
 
   const mermaidCode = generateMermaidDiagram(config);
   const tempMmdPath = path.join(cwd, '.temp-diagram.mmd');
@@ -162,7 +169,7 @@ async function generateDiagram(config: BotConfig, cwd: string): Promise<void> {
       stdio: 'pipe',
       cwd: cwd,
     });
-    console.log(`📝 Updated: src/bot-diagram.png`);
+    console.log(`📝 Updated: doc/bot-diagram.png`);
   } catch {
     console.warn(`⚠️  Could not generate PNG diagram (mermaid-cli may not be installed)`);
   } finally {

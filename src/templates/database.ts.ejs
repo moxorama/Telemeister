@@ -1,6 +1,7 @@
 /**
  * Database Entry Point
  *
+ * Implements DatabaseAdapter interface for the Telemeister framework.
  * Uses Prisma ORM 7.x with driver adapters for database operations.
  *
  * Switch between SQLite and MySQL by changing DATABASE_URL in .env:
@@ -14,7 +15,8 @@
 
 import 'dotenv/config';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-import { PrismaClient, User, UserInfo } from './generated/prisma/client.js';
+import { PrismaClient, User, UserInfo } from '../generated/prisma/client.js';
+import type { DatabaseAdapter, UserData } from 'telemeister/core/bot';
 
 // Determine database provider from URL
 const databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
@@ -25,7 +27,7 @@ const isMysql = databaseUrl.startsWith('mysql:');
 const adapter = isMysql
   ? (() => {
       throw new Error(
-        'MySQL adapter not yet configured. Please configure @prisma/adapter-mariadb in src/database.ts'
+        'MySQL adapter not yet configured. Please configure @prisma/adapter-mariadb in src/lib/database.ts'
       );
     })()
   : new PrismaBetterSqlite3({
@@ -157,5 +159,48 @@ export async function updateUserState(
 export async function disconnectDB(): Promise<void> {
   await prisma.$disconnect();
 }
+
+/**
+ * Database adapter implementation for Telemeister framework
+ * Implements the DatabaseAdapter interface
+ */
+export const databaseAdapter: DatabaseAdapter = {
+  getUserByTelegramId: async (telegramId: string): Promise<UserData | null> => {
+    const user = await getUserByTelegramId(telegramId);
+    if (!user) return null;
+    
+    return {
+      id: user.id,
+      telegramId: user.telegramId,
+      chatId: user.chatId,
+      currentState: user.currentState,
+      info: user.info,
+    };
+  },
+
+  createOrUpdateUser: async (data: {
+    telegramId: string;
+    chatId: string;
+    currentState?: string;
+    stateData?: Record<string, unknown>;
+  }): Promise<UserData> => {
+    const user = await createOrUpdateUser(data);
+    return {
+      id: user.id,
+      telegramId: user.telegramId,
+      chatId: user.chatId,
+      currentState: user.currentState,
+      info: user.info,
+    };
+  },
+
+  updateUserState: async (
+    telegramId: string,
+    currentState: string,
+    stateData?: Record<string, unknown>
+  ): Promise<void> => {
+    await updateUserState(telegramId, currentState, stateData);
+  },
+};
 
 export { prisma };

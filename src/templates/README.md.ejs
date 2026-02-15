@@ -1,0 +1,285 @@
+# <%= botName %>
+
+Telegram bot built with Telemeister - a TypeScript framework for building stateful Telegram bots with Prisma ORM.
+
+## Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Setup environment
+cp .env.example .env
+# Edit .env and add your bot token
+
+# Setup database
+npm run db:generate
+npm run db:migrate
+
+# Run the bot
+npm run dev
+```
+
+## Project Structure
+
+```
+<%= botName %>/
+├── bot.json                    # State machine config (do not commit)
+├── prisma/
+│   ├── schema.prisma          # Database schema - edit to add custom models
+│   └── config.ts              # Prisma configuration
+├── src/
+│   ├── bot/                   # Bot runners (polling/webhook modes)
+│   │   ├── polling.ts        # Polling mode runner
+│   │   └── webhook.ts        # Webhook mode runner
+│   ├── handlers/              # State handlers
+│   │   ├── index.ts          # Auto-generated handler imports
+│   │   ├── welcome/          # Example: welcome state
+│   │   ├── menu/             # Example: menu state
+│   │   └── idle/             # Default idle state
+│   ├── lib/                   # Database and utilities
+│   │   └── database.ts       # Database adapter implementation
+│   ├── bot-state-types.ts    # Generated types (do not edit)
+│   └── index.ts              # Bot entry point
+├── doc/
+│   ├── bot-diagram.md        # Generated state diagram
+│   └── bot-diagram.png       # Visual diagram
+└── dev.db                    # SQLite database (do not commit)
+```
+
+## State Management Commands
+
+Add and manage conversation states:
+
+```bash
+# Add a new state (creates handler + updates types)
+npm run state:add settings
+
+# Delete a state
+npm run state:delete settings
+
+# Add transition between states
+npm run state:transition:add welcome settings
+
+# Remove transition
+npm run state:transition:delete welcome settings
+
+# Sync types and regenerate diagrams
+npm run state:sync
+```
+
+## Database
+
+### Custom Models
+
+Edit `prisma/schema.prisma` to add your custom models:
+
+```prisma
+model User {
+  id           Int       @id @default(autoincrement())
+  telegramId   String    @unique
+  chatId       String
+  currentState String    @default("idle")
+  updatedAt    DateTime  @updatedAt
+  info         UserInfo?
+  // Add your relations here:
+  orders       Order[]
+}
+
+model UserInfo {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stateData String   @default("{}")
+}
+
+// Your custom model
+model Order {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  product   String
+  amount    Float
+  createdAt DateTime @default(now())
+}
+```
+
+After editing the schema, regenerate the client:
+
+```bash
+npm run db:generate    # Regenerate Prisma client
+npm run db:migrate     # Create and apply migration
+```
+
+### Custom Database Queries
+
+Create `src/lib/database.ts` for your database operations:
+
+```typescript
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+// Example: Get user with orders
+export async function getUserWithOrders(telegramId: string) {
+  return await prisma.user.findUnique({
+    where: { telegramId },
+    include: {
+      info: true,
+      orders: {
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      },
+    },
+  });
+}
+
+// Example: Create a new order
+export async function createOrder(
+  telegramId: string,
+  product: string,
+  amount: number
+) {
+  const user = await prisma.user.findUnique({
+    where: { telegramId },
+  });
+  
+  if (!user) throw new Error('User not found');
+  
+  return await prisma.order.create({
+    data: {
+      userId: user.id,
+      product,
+      amount,
+    },
+  });
+}
+
+// Example: Get order statistics
+export async function getUserOrderStats(telegramId: string) {
+  const user = await prisma.user.findUnique({
+    where: { telegramId },
+    include: {
+      orders: true,
+    },
+  });
+  
+  if (!user) return { count: 0, total: 0 };
+  
+  const total = user.orders.reduce((sum, order) => sum + order.amount, 0);
+  
+  return {
+    count: user.orders.length,
+    total,
+  };
+}
+
+export { prisma };
+```
+
+Use in handlers:
+
+```typescript
+import { appBuilder, type AppContext } from 'telemeister/core';
+import type { MenuTransitions } from '../../bot-state-types.js';
+import { getUserWithOrders, createOrder } from '../../lib/database.js';
+
+appBuilder
+  .forState('menu')
+  .onEnter(async (context: AppContext): MenuTransitions => {
+    const user = await getUserWithOrders(String(context.telegramId));
+    
+    if (user?.orders.length) {
+      await context.send(`You have ${user.orders.length} orders!`);
+    } else {
+      await context.send('Welcome! You have no orders yet.');
+    }
+  })
+  .onResponse(async (context: AppContext, response): MenuTransitions => {
+    if (response === 'order') {
+      await createOrder(String(context.telegramId), 'Product A', 99.99);
+      await context.send('Order created!');
+    }
+  });
+
+console.log('✅ State handler registered: menu');
+```
+
+## Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start bot in development mode (watch) |
+| `npm run build` | Compile TypeScript |
+| `npm run start` | Run compiled bot |
+| `npm run db:generate` | Generate Prisma client |
+| `npm run db:migrate` | Create and apply database migrations |
+| `npm run db:studio` | Open Prisma Studio (database GUI) |
+| `npm run state:add <name>` | Add new state |
+| `npm run state:delete <name>` | Delete state |
+| `npm run state:sync` | Sync types and handlers |
+| `npm run state:transition:add <from> <to>` | Add transition |
+| `npm run state:transition:delete <from> <to>` | Delete transition |
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `BOT_TOKEN` | Yes | Telegram bot token from @BotFather |
+| `DATABASE_URL` | Yes | Database connection string |
+| `BOT_MODE` | No | `polling` (default) or `webhook` |
+| `WEBHOOK_URL` | If webhook | Webhook URL for production |
+| `PORT` | If webhook | Port for webhook server (default: 3000) |
+
+## Database Configuration
+
+### SQLite (Development)
+```env
+DATABASE_URL=file:./dev.db
+```
+
+### MySQL (Production)
+```env
+DATABASE_URL=mysql://user:password@localhost:3306/dbname
+```
+
+When switching to MySQL, update `prisma/schema.prisma`:
+```prisma
+datasource db {
+  provider = "mysql"
+}
+```
+
+## State Machine
+
+The bot uses a finite state machine defined in `bot.json`:
+
+```json
+{
+  "welcome": ["menu"],
+  "menu": ["welcome", "settings"],
+  "settings": ["menu"]
+}
+```
+
+Each handler can transition to its listed states by returning the state name.
+
+## Development Tips
+
+1. **Always regenerate types after schema changes**: `npm run db:generate`
+2. **Use Prisma Studio for database inspection**: `npm run db:studio`
+3. **Check the diagram**: See `doc/bot-diagram.md` for visual state flow
+4. **State data**: Use `context.setData()` and `context.getData()` for temporary storage
+5. **Persistent storage**: Use custom Prisma models for user data
+
+## Deployment
+
+1. Set production database URL
+2. Run migrations: `npm run db:migrate`
+3. Build: `npm run build`
+4. Start: `npm start`
+
+For webhook mode:
+```bash
+BOT_MODE=webhook WEBHOOK_URL=https://your-domain.com npm start
+```

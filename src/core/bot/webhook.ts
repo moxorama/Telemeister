@@ -6,30 +6,37 @@
 
 import express, { Request, Response } from 'express';
 import { Bot, session, webhookCallback, type Context } from 'grammy';
-import type { AppStates } from '../core/app-states.js';
-import { appBuilder } from '../core/index.js';
-import { PrismaSessionAdapter, getOrCreateSession, type SessionData } from './session.js';
-import type { BotHandlerContext } from '../core/types.js';
+import { appBuilder, type BotHandlerContext } from 'telemeister/core';
+import { SessionStorageAdapter, getOrCreateSession, type SessionData } from './session.js';
+import type { DatabaseAdapter } from './types.js';
 
 // Extend Grammy context with our custom properties
 interface BotContext extends Context {
   session: SessionData;
 }
 
+export interface WebhookConfig {
+  token: string;
+  database: DatabaseAdapter;
+  webhookUrl: string;
+  port: number;
+}
+
 /**
  * Create and configure the Grammy bot (shared with polling)
  */
-export function createBot(botToken: string): Bot<BotContext> {
-  const bot = new Bot<BotContext>(botToken);
+export function createBot(config: Omit<WebhookConfig, 'webhookUrl' | 'port'>): Bot<BotContext> {
+  const { token, database } = config;
+  const bot = new Bot<BotContext>(token);
 
-  // Install session middleware with Prisma adapter
+  // Install session middleware with storage adapter
   bot.use(
     session({
       initial: (): SessionData => ({
         currentState: 'idle',
         stateData: {},
       }),
-      storage: new PrismaSessionAdapter(),
+      storage: new SessionStorageAdapter(database),
       getSessionKey: (ctx) => ctx.from?.id.toString(),
     })
   );
@@ -44,20 +51,17 @@ export function createBot(botToken: string): Bot<BotContext> {
     const chatId = ctx.chat.id.toString();
 
     // Get or create user session
-    const { session: userSession, isNew } = await getOrCreateSession(telegramId, chatId);
+    const { session: userSession, isNew } = await getOrCreateSession(telegramId, chatId, database);
     ctx.session = userSession;
 
     // Call onEnter for initial state if this is a new session
     if (isNew) {
-      const handlerContext = createHandlerContext(ctx, userSession);
-      const nextState = await appBuilder.executeOnEnter(
-        userSession.currentState as AppStates,
-        handlerContext
-      );
+      const handlerContext = createHandlerContext(ctx, userSession, database);
+      const nextState = await appBuilder.executeOnEnter(userSession.currentState, handlerContext);
 
       // Handle transition from onEnter
       if (nextState && nextState !== userSession.currentState) {
-        await transitionToState(ctx, userSession, nextState as AppStates, handlerContext);
+        await transitionToState(ctx, userSession, nextState, handlerContext, database);
       } else {
         // Save any state data changes
         userSession.stateData =
@@ -74,18 +78,18 @@ export function createBot(botToken: string): Bot<BotContext> {
     const session = ctx.session;
 
     // Create handler context compatible with existing handlers
-    const handlerContext = createHandlerContext(ctx, session);
+    const handlerContext = createHandlerContext(ctx, session, database);
 
     // Execute onResponse handler for current state
     const nextState = await appBuilder.executeOnResponse(
-      session.currentState as AppStates,
+      session.currentState,
       handlerContext,
       text
     );
 
     // Handle state transition (call onEnter even for same state)
     if (nextState) {
-      await transitionToState(ctx, session, nextState as AppStates, handlerContext);
+      await transitionToState(ctx, session, nextState, handlerContext, database);
     } else {
       // Save any state data changes
       session.stateData =
@@ -98,10 +102,10 @@ export function createBot(botToken: string): Bot<BotContext> {
     const session = ctx.session;
 
     // Create handler context
-    const handlerContext = createHandlerContext(ctx, session);
+    const handlerContext = createHandlerContext(ctx, session, database);
 
     // Transition to welcome state
-    await transitionToState(ctx, session, 'welcome', handlerContext);
+    await transitionToState(ctx, session, 'welcome', handlerContext, database);
   });
 
   return bot;
@@ -109,17 +113,10 @@ export function createBot(botToken: string): Bot<BotContext> {
 
 /**
  * Start the bot in webhook mode
- *
- * @param botToken - Telegram bot token
- * @param webhookUrl - Public URL where Telegram will send updates
- * @param port - Port to listen on
  */
-export async function startWebhookMode(
-  botToken: string,
-  webhookUrl: string,
-  port: number
-): Promise<void> {
-  const bot = createBot(botToken);
+export async function startWebhookMode(config: WebhookConfig): Promise<void> {
+  const { token, database, webhookUrl, port } = config;
+  const bot = createBot({ token, database });
 
   // Create Express app
   const app = express();
@@ -134,7 +131,6 @@ export async function startWebhookMode(
   });
 
   // Set up webhook endpoint using Grammy's webhookCallback
-  // This handles the Telegram update parsing automatically
   app.use('/webhook', webhookCallback(bot, 'express'));
 
   // Start server
@@ -159,8 +155,8 @@ export async function startWebhookMode(
 /**
  * Set webhook URL manually (for scripts)
  */
-export async function setWebhook(botToken: string, webhookUrl: string): Promise<void> {
-  const bot = new Bot(botToken);
+export async function setWebhook(token: string, webhookUrl: string): Promise<void> {
+  const bot = new Bot(token);
 
   try {
     await bot.api.setWebhook(webhookUrl, {
@@ -171,7 +167,6 @@ export async function setWebhook(botToken: string, webhookUrl: string): Promise<
     console.error('❌ Failed to set webhook:', error);
     throw error;
   } finally {
-    // Don't start the bot, just set the webhook
     await bot.api.deleteWebhook({ drop_pending_updates: true });
   }
 }
@@ -179,8 +174,8 @@ export async function setWebhook(botToken: string, webhookUrl: string): Promise<
 /**
  * Delete webhook (stop receiving updates)
  */
-export async function deleteWebhook(botToken: string): Promise<void> {
-  const bot = new Bot(botToken);
+export async function deleteWebhook(token: string): Promise<void> {
+  const bot = new Bot(token);
 
   try {
     await bot.api.deleteWebhook({ drop_pending_updates: true });
@@ -194,8 +189,8 @@ export async function deleteWebhook(botToken: string): Promise<void> {
 /**
  * Get webhook info
  */
-export async function getWebhookInfo(botToken: string): Promise<unknown> {
-  const bot = new Bot(botToken);
+export async function getWebhookInfo(token: string): Promise<unknown> {
+  const bot = new Bot(token);
 
   try {
     const info = await bot.api.getWebhookInfo();
@@ -209,7 +204,11 @@ export async function getWebhookInfo(botToken: string): Promise<unknown> {
 /**
  * Create a handler context compatible with existing handlers
  */
-function createHandlerContext(ctx: BotContext, session: SessionData): BotHandlerContext<AppStates> {
+function createHandlerContext(
+  ctx: BotContext,
+  session: SessionData,
+  database: DatabaseAdapter
+): BotHandlerContext<string> {
   // Local state data copy for modifications
   const localStateData = { ...session.stateData };
 
@@ -217,7 +216,7 @@ function createHandlerContext(ctx: BotContext, session: SessionData): BotHandler
     userId: session.userId || 0,
     telegramId: ctx.from?.id || 0,
     chatId: ctx.chat?.id || 0,
-    currentState: session.currentState as AppStates,
+    currentState: session.currentState,
 
     send: async (text: string) => {
       await ctx.reply(text, { parse_mode: 'Markdown' });
@@ -234,8 +233,14 @@ function createHandlerContext(ctx: BotContext, session: SessionData): BotHandler
       return localStateData[key] as T | undefined;
     },
 
-    transition: async (toState: AppStates) => {
-      await transitionToState(ctx, session, toState, createHandlerContext(ctx, session));
+    transition: async (toState: string) => {
+      await transitionToState(
+        ctx,
+        session,
+        toState,
+        createHandlerContext(ctx, session, database),
+        database
+      );
     },
   };
 }
@@ -246,8 +251,9 @@ function createHandlerContext(ctx: BotContext, session: SessionData): BotHandler
 async function transitionToState(
   ctx: BotContext,
   session: SessionData,
-  toState: AppStates,
-  handlerContext: BotHandlerContext<AppStates>
+  toState: string,
+  handlerContext: BotHandlerContext<string>,
+  database: DatabaseAdapter
 ): Promise<void> {
   // Update session state
   session.currentState = toState;
@@ -261,9 +267,9 @@ async function transitionToState(
   // Handle chained transition from onEnter
   if (enterNextState && enterNextState !== toState) {
     // Create fresh context for the next state
-    const nextContext = createHandlerContext(ctx, session);
-    const nextState = enterNextState as AppStates;
+    const nextContext = createHandlerContext(ctx, session, database);
+    const nextState = enterNextState;
     nextContext.currentState = nextState;
-    await transitionToState(ctx, session, nextState, nextContext);
+    await transitionToState(ctx, session, nextState, nextContext, database);
   }
 }

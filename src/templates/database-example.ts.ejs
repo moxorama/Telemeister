@@ -1,0 +1,138 @@
+/**
+ * Custom Database Queries
+ * 
+ * This file contains example database operations for your bot.
+ * Copy this file to src/lib/database.ts and customize as needed.
+ * 
+ * The Prisma client is available from the generated client.
+ * 
+ * IMPORTANT: After editing prisma/schema.prisma, run:
+ *   npm run db:generate    # Regenerate Prisma client
+ *   npm run db:migrate     # Create and apply migration
+ */
+
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+/**
+ * Example: Get user with their info and any custom relations
+ */
+export async function getUserWithDetails(telegramId: string) {
+  return await prisma.user.findUnique({
+    where: { telegramId },
+    include: {
+      info: true,
+      // Add your custom relations here after updating schema
+      // orders: true,
+      // profile: true,
+    },
+  });
+}
+
+/**
+ * Example: Update user's state data
+ */
+export async function updateUserData(
+  telegramId: string,
+  data: Record<string, unknown>
+) {
+  const user = await prisma.user.findUnique({
+    where: { telegramId },
+  });
+
+  if (!user) {
+    throw new Error(`User ${telegramId} not found`);
+  }
+
+  // Get existing data
+  const existingInfo = await prisma.userInfo.findUnique({
+    where: { userId: user.id },
+  });
+
+  const existingData = existingInfo
+    ? JSON.parse(existingInfo.stateData)
+    : {};
+
+  // Merge and save
+  await prisma.userInfo.upsert({
+    where: { userId: user.id },
+    create: {
+      userId: user.id,
+      stateData: JSON.stringify({ ...existingData, ...data }),
+    },
+    update: {
+      stateData: JSON.stringify({ ...existingData, ...data }),
+    },
+  });
+
+  return { ...existingData, ...data };
+}
+
+/**
+ * Example: Get user data
+ */
+export async function getUserData(telegramId: string) {
+  const user = await prisma.user.findUnique({
+    where: { telegramId },
+    include: { info: true },
+  });
+
+  if (!user?.info) {
+    return {};
+  }
+
+  return JSON.parse(user.info.stateData);
+}
+
+/**
+ * Example: Add a custom query for your domain
+ * 
+ * After adding an Order model to schema.prisma, uncomment and customize:
+ */
+/*
+export async function createOrder(
+  telegramId: string,
+  product: string,
+  amount: number
+) {
+  const user = await prisma.user.findUnique({
+    where: { telegramId },
+  });
+
+  if (!user) throw new Error('User not found');
+
+  return await prisma.order.create({
+    data: {
+      userId: user.id,
+      product,
+      amount,
+    },
+  });
+}
+
+export async function getUserOrders(telegramId: string) {
+  const user = await prisma.user.findUnique({
+    where: { telegramId },
+    include: {
+      orders: {
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+  });
+
+  return user?.orders || [];
+}
+
+export async function getOrderStats(telegramId: string) {
+  const orders = await getUserOrders(telegramId);
+  
+  return {
+    count: orders.length,
+    total: orders.reduce((sum, order) => sum + order.amount, 0),
+  };
+}
+*/
+
+// Export prisma client for direct access if needed
+export { prisma };

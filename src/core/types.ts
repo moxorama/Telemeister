@@ -1,9 +1,10 @@
-import type { AppStates } from '../bot-state-types.js';
 import { BotBuilder } from './builder.js';
 
-export const appBuilder = new BotBuilder<AppStates>();
+// Generic appBuilder - users should cast to their specific state type
+export const appBuilder = new BotBuilder<string>();
 
-export type AppContext = BotHandlerContext<AppStates>;
+// Generic AppContext - users should use their own state-specific types
+export type AppContext = BotHandlerContext<string>;
 
 export type BotState = string;
 
@@ -54,5 +55,3 @@ export interface BotMachineInput {
   currentState: string;
   stateData: Record<string, unknown>;
 }
-
-export type { StateTransitions } from '../bot-state-types.js';

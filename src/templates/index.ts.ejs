@@ -1,0 +1,53 @@
+/**
+ * Bot entry point
+ *
+ * This file starts the bot using the Telemeister framework.
+ * It imports bot runners from 'telemeister/core/bot' and the database adapter
+ * from your local database implementation.
+ */
+
+import 'dotenv/config';
+import { startPollingMode, startWebhookMode } from 'telemeister/core/bot';
+import { databaseAdapter } from './lib/database.js';
+import './handlers/index.js';
+
+const botToken = process.env.BOT_TOKEN;
+if (!botToken) {
+  console.error('❌ BOT_TOKEN environment variable is required');
+  process.exit(1);
+}
+
+// Type assertion after validation
+const token: string = botToken;
+
+const botMode = process.env.BOT_MODE || 'polling';
+
+async function main(): Promise<void> {
+  console.log(`🚀 Starting bot in ${botMode} mode...`);
+
+  if (botMode === 'webhook') {
+    const webhookUrl = process.env.WEBHOOK_URL;
+    if (!webhookUrl) {
+      console.error('❌ WEBHOOK_URL environment variable is required for webhook mode');
+      process.exit(1);
+    }
+    const port = parseInt(process.env.PORT || '3000', 10);
+    
+    await startWebhookMode({
+      token: token,
+      database: databaseAdapter,
+      webhookUrl,
+      port,
+    });
+  } else {
+    await startPollingMode({
+      token: token,
+      database: databaseAdapter,
+    });
+  }
+}
+
+main().catch((error) => {
+  console.error('Failed to start bot:', error);
+  process.exit(1);
+});

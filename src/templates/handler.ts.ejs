@@ -1,5 +1,5 @@
 import { appBuilder, type AppContext } from 'telemeister/core';
-<% if (transitionStates.length > 0) { %>import type { <%= pascalCase(stateName) %>Transitions } from '../bot-state-types.js';<% } %>
+<% if (transitionStates.length > 0) { %>import type { <%= pascalCase(stateName) %>Transitions } from '../../bot-state-types.js';<% } %>
 
 /**
  * <%= stateName %> State Handler
@@ -9,19 +9,31 @@ import { appBuilder, type AppContext } from 'telemeister/core';
 
 appBuilder
   .forState('<%= stateName %>')
+<% if (transitionStates.length > 0) { %>
+  .onEnter(async (context: AppContext): <%= pascalCase(stateName) %>Transitions => {
+<% } else { %>
   .onEnter(async (context: AppContext) => {
+<% } %>
     // Called when user enters this state
     // Can optionally return a state name to immediately transition
 
     await context.send("Hello from <%= stateName %> state!");
+
+    // Database helpers (see src/lib/database.ts):
+    // import { getUserByTelegramId, createOrUpdateUser } from '../../lib/database.js';
+    // const user = await getUserByTelegramId(String(context.telegramId));
 <% if (transitionStates.length > 0) { %>
     // Available transitions: <%= transitionStates.join(', ') %>
-    // return "<%= transitionStates[0] %>"; // <%= pascalCase(stateName) %>Transitions
+    // return "<%= transitionStates[0] %>";
 <% } else { %>
     // No transitions defined - add them with: npm run state:transition:add -- <%= stateName %> <target-state>
 <% } %>
   })
+<% if (transitionStates.length > 0) { %>
+  .onResponse(async (context: AppContext, response): <%= pascalCase(stateName) %>Transitions => {
+<% } else { %>
   .onResponse(async (context: AppContext, response) => {
+<% } %>
     // Called when user sends a message in this state
     // Return a state name to transition, or nothing to stay
 
@@ -31,6 +43,10 @@ appBuilder
 <% } %>
     // Handle user response
     await context.send(`You said: ${text}`);
+
+    // Database helpers (see src/lib/database.ts):
+    // import { updateUserState } from '../../lib/database.js';
+    // await updateUserState(String(context.telegramId), 'nextState', { lastMessage: text });
   });
 
 console.log('✅ State handler registered: <%= stateName %>');

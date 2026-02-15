@@ -17,20 +17,20 @@
       "import": "./dist/core/index.js",
       "types": "./dist/core/index.d.ts"
     },
-    "./bot": {
-      "import": "./dist/bot/index.js",
-      "types": "./dist/bot/index.d.ts"
+    "./core/bot": {
+      "import": "./dist/core/bot/index.js",
+      "types": "./dist/core/bot/index.d.ts"
     }
   },
   "files": [
     "bin/",
     "dist/",
-    "templates/",
+    "src/templates/",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r src/templates dist/templates",
     "dev": "tsx src/index.ts",
     "dev:watch": "tsx watch src/index.ts",
     "dev:webhook": "BOT_MODE=webhook tsx src/index.ts",
