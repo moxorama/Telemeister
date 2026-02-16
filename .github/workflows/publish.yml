@@ -37,9 +37,7 @@ jobs:
         run: npm run build
 
       - name: Publish to NPM
-        run: npm publish --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ github.token }}
+        run: npm publish
 
       - name: Commit version update
         run: |
