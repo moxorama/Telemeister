@@ -81,8 +81,12 @@
     "prisma",
     "state-machine"
   ],
-  "author": "",
-  "license": "MIT",
+  "author": "George Khromchenko",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "license": "GPL-3.0-only",
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.0.0",
     "@prisma/adapter-mariadb": "^7.0.0",
