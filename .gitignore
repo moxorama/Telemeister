@@ -6,3 +6,5 @@ node_modules
 /dist/*
 
 /prisma/*.db
+
+.DS_store
