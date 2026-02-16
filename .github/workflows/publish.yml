@@ -54,4 +54,4 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add package.json package-lock.json
           git commit -m "chore: bump version to ${{ steps.get_version.outputs.VERSION }} [skip ci]"
-          git push
+          git push origin HEAD:master
