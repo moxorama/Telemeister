@@ -6,10 +6,17 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # Allow committing version update
       id-token: write # Required for OIDC
     steps:
       - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Update package.json version
+        run: npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -25,3 +32,11 @@ jobs:
 
       - name: Publish to NPM
         run: npm publish --provenance
+
+      - name: Commit version update
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to ${{ steps.get_version.outputs.VERSION }} [skip ci]"
+          git push
