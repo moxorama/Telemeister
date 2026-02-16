@@ -8,6 +8,7 @@ jobs:
     permissions:
       contents: write # Allow committing version update
       id-token: write # Required for OIDC
+      attestations: write # Required for provenance
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,8 +37,18 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Debug OIDC Token
+        run: |
+          echo "Checking OIDC token availability..."
+          if [ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ]; then
+            echo "✅ OIDC token is available"
+          else
+            echo "❌ OIDC token is NOT available"
+          fi
+          echo "GitHub repository: $GITHUB_REPOSITORY"
+
       - name: Publish to NPM
-        run: npm publish
+        run: npm publish --access public
 
       - name: Commit version update
         run: |
