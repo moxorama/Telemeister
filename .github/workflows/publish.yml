@@ -48,7 +48,10 @@ jobs:
           echo "GitHub repository: $GITHUB_REPOSITORY"
 
       - name: Publish to NPM
-        run: npm publish --access public
+        uses: JS-DevTools/npm-publish@v3
+        with:
+          provenance: true
+          access: public
 
       - name: Commit version update
         run: |
