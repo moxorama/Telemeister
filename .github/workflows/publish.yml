@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Update npm
+        run: npm install -g npm@latest
+
       - name: Build
         run: npm run build
 
@@ -47,11 +50,22 @@ jobs:
           fi
           echo "GitHub repository: $GITHUB_REPOSITORY"
 
+      - name: Debug npm config
+        run: |
+          echo "npm config list:"
+          npm config list
+          echo ""
+          echo "npm whoami (should fail for OIDC):"
+          npm whoami 2>&1 || echo "Not authenticated (expected for OIDC)"
+
       - name: Publish to NPM
-        uses: JS-DevTools/npm-publish@v3
-        with:
-          provenance: true
-          access: public
+        run: |
+          # Unset NPM_AUTH_TOKEN to prevent interference with OIDC
+          unset NPM_AUTH_TOKEN
+          unset NODE_AUTH_TOKEN
+          # Debug: show environment
+          echo "ACTIONS_ID_TOKEN_REQUEST_URL: ${ACTIONS_ID_TOKEN_REQUEST_URL:-not set}"
+          npm publish --provenance --access public
 
       - name: Commit version update
         run: |
