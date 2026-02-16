@@ -10,6 +10,8 @@ jobs:
       id-token: write # Required for OIDC
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Extract version from tag
         id: get_version
@@ -36,6 +38,8 @@ jobs:
 
       - name: Publish to NPM
         run: npm publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
 
       - name: Commit version update
         run: |
