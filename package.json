@@ -5,6 +5,10 @@
   "type": "module",
   "main": "./dist/core/index.js",
   "types": "./dist/core/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moxorama/Telemeister.git"
+  },
   "bin": {
     "telemeister": "./bin/telemeister.js"
   },

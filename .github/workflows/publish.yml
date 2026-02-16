@@ -40,32 +40,12 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Debug OIDC Token
-        run: |
-          echo "Checking OIDC token availability..."
-          if [ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ]; then
-            echo "✅ OIDC token is available"
-          else
-            echo "❌ OIDC token is NOT available"
-          fi
-          echo "GitHub repository: $GITHUB_REPOSITORY"
-
-      - name: Debug npm config
-        run: |
-          echo "npm config list:"
-          npm config list
-          echo ""
-          echo "npm whoami (should fail for OIDC):"
-          npm whoami 2>&1 || echo "Not authenticated (expected for OIDC)"
-
       - name: Publish to NPM
         run: |
           # Remove the placeholder auth token that setup-node creates
           # It prevents npm from using OIDC Trusted Publishing
           rm -f "$NPM_CONFIG_USERCONFIG"
           npm config set registry "https://registry.npmjs.org/"
-          # Debug: show environment
-          echo "ACTIONS_ID_TOKEN_REQUEST_URL: ${ACTIONS_ID_TOKEN_REQUEST_URL:-not set}"
           npm publish --provenance --access public
 
       - name: Commit version update
