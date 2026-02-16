@@ -1,0 +1,22 @@
+name: Test OIDC Token
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Debug OIDC Token
+        run: |
+          echo "Checking OIDC token..."
+          if [ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ]; then
+            echo "✅ OIDC token is available"
+            echo "Audience: $ACTIONS_ID_TOKEN_REQUEST_URL"
+          else
+            echo "❌ OIDC token is NOT available"
+            echo "This means Trusted Publishing won't work"
+          fi
