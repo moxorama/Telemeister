@@ -34,7 +34,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc && cp -r src/templates dist/templates",
+    "build": "tsc && cp -r src/templates dist/templates && npm run build:cli",
+    "build:cli": "esbuild dist/cli/cli.js --bundle --platform=node --format=esm --outfile=bin/telemeister-cli.js --external:typescript --external:tsx --external:prisma",
     "dev": "tsx src/index.ts",
     "dev:watch": "tsx watch src/index.ts",
     "dev:webhook": "BOT_MODE=webhook tsx src/index.ts",
@@ -110,6 +111,7 @@
     "@types/ejs": "^3.1.5",
     "@types/express": "^5.0.0",
     "@types/node": "^25.0.6",
+    "esbuild": "^0.27.3",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",

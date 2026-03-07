@@ -9,8 +9,22 @@ import ejs from 'ejs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Get the package root directory (works for both dist/cli/ and bin/ locations)
+function getPackageRoot(): string {
+  // __dirname is either dist/cli/ (from tsc) or bin/ (from bundle)
+  const currentDir = __dirname;
+  // If we're in dist/cli/, go up 2 levels to get package root
+  // If we're in bin/, go up 1 level to get package root
+  const baseName = path.basename(currentDir);
+  if (baseName === 'cli' || baseName === 'dist') {
+    return path.join(currentDir, '..', '..');
+  }
+  return path.join(currentDir, '..');
+}
+
 // Paths are relative to project CWD (where the bot project is)
 function getProjectPaths(cwd: string) {
+  const packageRoot = getPackageRoot();
   return {
     srcDir: path.join(cwd, 'src'),
     docDir: path.join(cwd, 'doc'),
@@ -20,7 +34,7 @@ function getProjectPaths(cwd: string) {
     botDiagramMdPath: path.join(cwd, 'doc', 'bot-diagram.md'),
     botDiagramPngPath: path.join(cwd, 'doc', 'bot-diagram.png'),
     // Templates are relative to the package root, not the CLI file
-    templatePath: path.join(__dirname, '..', 'templates', 'handler.ts.ejs'),
+    templatePath: path.join(packageRoot, 'dist', 'templates', 'handler.ts.ejs'),
   };
 }
 
