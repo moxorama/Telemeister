@@ -181,13 +181,12 @@ export class BotBuilder<TState extends BotState = BotState> {
    */
   async executeOnResponse(
     state: TState,
-    context: BotHandlerContext<TState>,
-    response: string
+    context: BotHandlerContext<TState>
   ): Promise<TState | void> {
     const handlers = this.handlers.get(state);
     const handler = handlers?.onResponse;
     if (handler) {
-      return await handler(context, response);
+      return await handler(context);
     }
   }
 

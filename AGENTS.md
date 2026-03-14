@@ -47,6 +47,8 @@ telemeister/ (this repo)
 │   │   ├── database.ts.ejs       # Database adapter implementation
 │   │   └── database-example.ts.ejs # Database helper examples
 │   └── index.ts           # Package main export
+├── examples/              # Example bots for testing
+│   └── demo-bot/         # Demo bot using workspace
 ├── bin/
 │   └── telemeister.js     # CLI entry point
 └── package.json
@@ -106,8 +108,11 @@ States are strictly typed per-handler:
 import type { MenuTransitions } from './bot-state-types.js';
 
 // Return type is enforced
-.onResponse(async (context, response): MenuTransitions => {
-  return 'welcome'; // Only valid transitions allowed
+.onResponse(async (context): MenuTransitions => {
+  if (context.ctx.callbackQuery?.data === 'back') {
+    await context.ctx.answerCallbackQuery();
+    return 'welcome'; // Only valid transitions allowed
+  }
 })
 ```
 
@@ -125,6 +130,8 @@ When developing Telemeister itself:
 | `npm run telemeister:create-bot -- <name>` | Test create-bot scaffolding |
 | `npm run build` | Compile TypeScript |
 | `npm run lint` | ESLint check |
+| `npm run dev -w examples/demo-bot` | Run example bot |
+| `npm run example:recreate` | Regenerate example bot |
 
 Commands in USER projects (via `telemeister` CLI):
 - `telemeister state:add <name>`
@@ -215,10 +222,21 @@ appBuilder
   .forState('stateName')
   .onEnter(async (context: AppContext): StateNameTransitions => {
     // Called when entering state
+    // Access Grammy context via context.ctx
+    await context.ctx.reply("Hello!");
     // Return a state to immediately transition
   })
-  .onResponse(async (context: AppContext, response): StateNameTransitions => {
-    // Called on user message
+  .onResponse(async (context: AppContext): StateNameTransitions => {
+    // Called on any user update (message, callback, poll, etc.)
+    // Use context.ctx to access Grammy context
+    if (context.ctx.message?.text === 'yes') {
+      await context.ctx.reply('Confirmed!');
+      return 'confirmed';
+    }
+    if (context.ctx.callbackQuery?.data === 'click') {
+      await context.ctx.answerCallbackQuery();
+      await context.ctx.reply('Clicked!');
+    }
     // Return a state to transition, or void to stay
   });
 
@@ -233,11 +251,20 @@ interface BotHandlerContext<TState> {
   telegramId: number;                          // Telegram user ID
   chatId: number;                              // Telegram chat ID
   currentState: TState;                        // Current state name
-  send: (text: string) => Promise<unknown>;    // Send message
+  ctx: Context;                                // Full Grammy context (see grammy.dev)
   setData: <T>(key: string, value: T) => void; // Store data
   getData: <T>(key: string) => T | undefined;  // Retrieve data
   transition: (toState: TState) => Promise<void>; // Manual transition
 }
+```
+
+The `ctx` property provides full access to Grammy's Context API:
+- `ctx.reply()`, `ctx.replyWithPhoto()`, `ctx.replyWithPoll()`, etc. - Send messages
+- `ctx.message?.text` - Text messages
+- `ctx.callbackQuery?.data` - Inline button callbacks
+- `ctx.message?.photo` - Photo messages
+- `ctx.pollAnswer` - Poll responses
+- See [Grammy docs](https://grammy.dev/guide/context) for full API
 ```
 
 ## Working with States (CLI)
@@ -293,6 +320,7 @@ Template categories:
 ```typescript
 // Core imports (from telemeister package)
 import { appBuilder, type AppContext } from 'telemeister/core';
+import type { Context } from 'grammy';
 
 // Type imports (from generated file)
 import type { MenuTransitions } from './bot-state-types.js';
@@ -352,32 +380,63 @@ cd test-bot
 npm run telemeister:state:add -- settings
 ```
 
-### Linking Framework for Local Testing:
+### Testing with Example Bot
 
-When generating a bot for testing with the local (unpublished) framework, link the dependency instead of using npm registry:
+An example bot is included in `examples/demo-bot/` using npm workspaces. This allows testing the framework without publishing to npm.
+
+#### Setup
 
 ```bash
-# After creating the bot
-cd test-bot
+# Install all dependencies (root + example)
+npm install
 
-# Link to local telemeister framework
-npm install /path/to/telemeister
-
-# Or with relative path
-npm install ../../Personal/Telemeister
-```
-
-**Important:** The bot reads from `telemeister/dist/`, so always rebuild the framework after changes:
-```bash
-cd /path/to/telemeister
+# Build framework
 npm run build
+
+# Setup demo-bot database
+npm run db:generate -w examples/demo-bot
+npm run db:migrate -w examples/demo-bot
 ```
 
-To restore the published npm version later:
+#### Running the Example
+
 ```bash
-npm uninstall telemeister
-npm install telemeister
+# From root
+npm run dev -w examples/demo-bot
+
+# Or from example directory
+cd examples/demo-bot && npm run dev
 ```
+
+#### Recreating After Framework Changes
+
+After significant template changes, regenerate the example:
+
+```bash
+npm run example:recreate
+npm install
+npm run db:generate -w examples/demo-bot
+npm run db:migrate -w examples/demo-bot
+```
+
+This:
+1. Removes `examples/demo-bot/`
+2. Runs `create-bot` CLI
+3. Sets `"telemeister": "*"` for workspace linking
+4. Cleans generated files (node_modules, lock file, db, .env)
+
+#### Workflow for Framework Development
+
+```bash
+# 1. Make changes to framework
+# 2. Rebuild
+npm run build
+
+# 3. Test in example bot
+npm run dev -w examples/demo-bot
+```
+
+Changes to core framework code (`src/core/*`) are immediately available after rebuild.
 
 ### Publishing:
 

@@ -1,25 +1,23 @@
 import { appBuilder, type AppContext } from 'telemeister/core';
-<% if (transitionStates.length > 0) { %>import type { <%= pascalCase(stateName) %>Transitions } from '../../bot-state-types.js';<% } %>
+import type { Context } from 'grammy';
+import type { WelcomeTransitions } from '../../bot-state-types.js';
 
 /**
- * <%= stateName %> State Handler
+ * welcome State Handler
  *
- * This file defines the handlers for the "<%= stateName %>" state.
+ * This file defines the handlers for the "welcome" state.
  */
 
 appBuilder
-  .forState('<%= stateName %>')
-<% if (transitionStates.length > 0) { %>
-  .onEnter(async (context: AppContext): <%= pascalCase(stateName) %>Transitions => {
-<% } else { %>
-  .onEnter(async (context: AppContext) => {
-<% } %>
+  .forState('welcome')
+
+  .onEnter(async (context: AppContext): WelcomeTransitions => {
     // Called when user enters this state
     // Can optionally return a state name to immediately transition
 
     // Access Grammy context via context.ctx
     // See Grammy docs: https://grammy.dev/guide/context
-    await context.ctx.reply("Hello from <%= stateName %> state!");
+    await context.ctx.reply('Hello from welcome state!');
 
     // === INLINE KEYBOARD EXAMPLE ===
     // import { InlineKeyboard } from 'grammy';
@@ -38,35 +36,29 @@ appBuilder
     // Database helpers (see src/lib/database.ts):
     // import { getUserByTelegramId, createOrUpdateUser } from '../../lib/database.js';
     // const user = await getUserByTelegramId(String(context.telegramId));
-<% if (transitionStates.length > 0) { %>
-    // Available transitions: <%= transitionStates.join(', ') %>
-    // return "<%= transitionStates[0] %>";
-<% } else { %>
-    // No transitions defined - add them with: npm run state:transition:add -- <%= stateName %> <target-state>
-<% } %>
+
+    // Available transitions: menu
+    // return "menu";
   })
-<% if (transitionStates.length > 0) { %>
-  .onResponse(async (context: AppContext): <%= pascalCase(stateName) %>Transitions => {
-<% } else { %>
-  .onResponse(async (context: AppContext) => {
-<% } %>
+
+  .onResponse(async (context: AppContext, ctx: Context): WelcomeTransitions => {
     // Called when user sends any update in this state (message, callback, poll, etc.)
     // Return a state name to transition, or nothing to stay
 
-    // Handle different update types via Grammy context (context.ctx):
-    // - context.ctx.message?.text - text messages
-    // - context.ctx.callbackQuery?.data - inline button callbacks
-    // - context.ctx.message?.photo - photo messages
-    // - context.ctx.pollAnswer - poll responses
+    // Handle different update types via Grammy context:
+    // - ctx.message?.text - text messages
+    // - ctx.callbackQuery?.data - inline button callbacks
+    // - ctx.message?.photo - photo messages
+    // - ctx.pollAnswer - poll responses
     // See Grammy docs: https://grammy.dev/guide/context
 
     // === INLINE KEYBOARD CALLBACK EXAMPLE ===
-    // if (context.ctx.callbackQuery?.data) {
-    //   await context.ctx.answerCallbackQuery();
-    //   const data = context.ctx.callbackQuery.data;
+    // if (ctx.callbackQuery?.data) {
+    //   await ctx.answerCallbackQuery();
+    //   const data = ctx.callbackQuery.data;
     //   switch (data) {
     //     case 'btn1':
-    //       await context.ctx.reply('You clicked Button 1!');
+    //       await ctx.reply('You clicked Button 1!');
     //       break;
     //     case 'btn2':
     //       return 'otherState'; // Transition to another state
@@ -75,40 +67,40 @@ appBuilder
     // }
 
     // === POLL ANSWER EXAMPLE ===
-    // if (context.ctx.pollAnswer) {
-    //   const optionIds = context.ctx.pollAnswer.option_ids;
+    // if (ctx.pollAnswer) {
+    //   const optionIds = ctx.pollAnswer.option_ids;
     //   const options = ['Option A', 'Option B', 'Option C'];
     //   const selected = optionIds.map(id => options[id]).join(', ');
-    //   await context.ctx.reply(`You voted for: ${selected}`);
+    //   await ctx.reply(`You voted for: ${selected}`);
     //   return;
     // }
 
     // === COMMAND HANDLING EXAMPLE ===
-    // const text = context.ctx.message?.text?.trim();
+    // const text = ctx.message?.text?.trim();
     // if (text?.startsWith('/')) {
     //   const command = text.split(' ')[0].toLowerCase();
     //   switch (command) {
     //     case '/start':
-    //       await context.ctx.reply('Welcome!');
+    //       await ctx.reply('Welcome!');
     //       return 'welcome';
     //     case '/menu':
     //       return 'menu';
     //     default:
-    //       await context.ctx.reply(`Unknown command: ${command}`);
+    //       await ctx.reply(`Unknown command: ${command}`);
     //   }
     //   return;
     // }
 
-    const text = context.ctx.message?.text?.trim();
+    const text = ctx.message?.text?.trim();
     if (text) {
-      await context.ctx.reply(`You said: ${text}`);
+      await ctx.reply(`You said: ${text}`);
     }
-<% if (transitionStates.length > 0) { %>
-    // Available transitions: <%= transitionStates.join(', ') %>
-<% } %>
+
+    // Available transitions: menu
+
     // Database helpers (see src/lib/database.ts):
     // import { updateUserState } from '../../lib/database.js';
     // await updateUserState(String(context.telegramId), 'nextState', { lastMessage: text });
   });
 
-console.log('✅ State handler registered: <%= stateName %>');
+console.log('✅ State handler registered: welcome');

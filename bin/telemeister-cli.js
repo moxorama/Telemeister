@@ -5,11 +5,11 @@ import * as fs2 from "fs";
 import * as path2 from "path";
 import { fileURLToPath } from "url";
 
-// node_modules/ejs/lib/esm/ejs.js
+// node_modules/.pnpm/ejs@4.0.1/node_modules/ejs/lib/esm/ejs.js
 import fs from "node:fs";
 import path from "node:path";
 
-// node_modules/ejs/lib/esm/utils.js
+// node_modules/.pnpm/ejs@4.0.1/node_modules/ejs/lib/esm/utils.js
 var utils = {};
 var regExpChars = /[|\\{}()[\]^$+*?.]/g;
 var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -143,7 +143,7 @@ if (typeof exports != "undefined") {
 }
 var utils_default = utils;
 
-// node_modules/ejs/lib/esm/ejs.js
+// node_modules/.pnpm/ejs@4.0.1/node_modules/ejs/lib/esm/ejs.js
 var DECLARATION_KEYWORD = "let";
 var ejs = {};
 var _DEFAULT_OPEN_DELIMITER = "<";
@@ -1078,6 +1078,14 @@ function renderTemplate(templateName, data = {}) {
   const template = loadTemplate(templateName);
   return ejs_default.render(template, data);
 }
+function getPackageManager() {
+  try {
+    execSync("pnpm --version", { stdio: "ignore" });
+    return "pnpm";
+  } catch {
+    return "npm";
+  }
+}
 async function createBot(botName) {
   if (!botName) {
     console.error("\u274C Error: Bot name is required");
@@ -1088,6 +1096,9 @@ async function createBot(botName) {
     console.error("\u274C Error: Bot name must start with a letter and contain only letters, numbers, underscores, and hyphens");
     process.exit(1);
   }
+  const pm = getPackageManager();
+  const pmInstall = pm === "pnpm" ? "pnpm install" : "npm install";
+  const pmRun = pm === "pnpm" ? "pnpm run" : "npm run";
   const targetDir = path3.resolve(process.cwd(), botName);
   if (fs3.existsSync(targetDir)) {
     console.error(`\u274C Error: Directory "${botName}" already exists`);
@@ -1113,22 +1124,24 @@ async function createBot(botName) {
   await stateSync();
   console.log("\n\u{1F4E6} Installing dependencies...");
   try {
-    execSync("npm install", { stdio: "inherit" });
+    execSync(pmInstall, { stdio: "inherit" });
     console.log("\u2705 Dependencies installed\n");
   } catch {
-    console.error('\u274C Failed to install dependencies. Please run "npm install" manually.\n');
+    console.error(`\u274C Failed to install dependencies. Please run "${pmInstall}" manually.
+`);
     process.exit(1);
   }
   const tempDbUrl = "file:./dev.db";
   console.log("\u{1F5C4}\uFE0F  Generating Prisma client...");
   try {
-    execSync("npm run db:generate", {
+    execSync(`${pmRun} db:generate`, {
       stdio: "inherit",
       env: { ...process.env, DATABASE_URL: tempDbUrl }
     });
     console.log("\u2705 Prisma client generated\n");
   } catch {
-    console.error('\u274C Failed to generate Prisma client. Please run "npm run db:generate" manually.\n');
+    console.error(`\u274C Failed to generate Prisma client. Please run "${pmRun} db:generate" manually.
+`);
     process.exit(1);
   }
   console.log("\u{1F5C4}\uFE0F  Creating initial database migration...");
@@ -1139,7 +1152,8 @@ async function createBot(botName) {
     });
     console.log("\u2705 Database migration created\n");
   } catch {
-    console.error('\u274C Failed to create database migration. Please run "npm run db:migrate" manually.\n');
+    console.error(`\u274C Failed to create database migration. Please run "${pmRun} db:migrate" manually.
+`);
     process.exit(1);
   }
   console.log(`\u2705 Bot "${botName}" created successfully!
@@ -1147,7 +1161,7 @@ async function createBot(botName) {
   console.log("Next steps:");
   console.log(`  cd ${botName}`);
   console.log("  cp .env.example .env  # Add your bot token from @BotFather");
-  console.log("  npm run dev");
+  console.log(`  ${pmRun} dev`);
 }
 
 // dist/cli/cli.js

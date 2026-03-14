@@ -1,3 +1,4 @@
+import type { Context } from 'grammy';
 import { BotBuilder } from './builder.js';
 
 // Generic appBuilder - users should cast to their specific state type
@@ -13,7 +14,7 @@ export interface BotHandlerContext<TState extends BotState = BotState> {
   telegramId: number;
   chatId: number;
   currentState: TState;
-  send: (text: string) => Promise<unknown>;
+  ctx: Context;
   setData: <T>(key: string, value: T) => void;
   getData: <T>(key: string) => T | undefined;
   transition: (toState: TState) => Promise<void>;
@@ -24,8 +25,7 @@ export type EnterHandler<TState extends BotState = BotState> = (
 ) => Promise<TState | void>;
 
 export type ResponseHandler<TState extends BotState = BotState> = (
-  context: BotHandlerContext<TState>,
-  response: string
+  context: BotHandlerContext<TState>
 ) => Promise<TState | void>;
 
 export interface StateHandlers<TState extends BotState = BotState> {

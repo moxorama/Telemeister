@@ -8,3 +8,11 @@ node_modules
 /prisma/*.db
 
 .DS_store
+
+# Example bots
+examples/*/node_modules/
+examples/*/package-lock.json
+examples/*/.env
+examples/*/dev.db
+examples/*/dev.db-journal
+examples/*/src/generated/

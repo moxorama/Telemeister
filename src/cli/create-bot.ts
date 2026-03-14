@@ -35,6 +35,15 @@ function renderTemplate(templateName: string, data: Record<string, unknown> = {}
   return ejs.render(template, data);
 }
 
+function getPackageManager(): string {
+  try {
+    execSync('pnpm --version', { stdio: 'ignore' });
+    return 'pnpm';
+  } catch {
+    return 'npm';
+  }
+}
+
 export async function createBot(botName: string | undefined): Promise<void> {
   if (!botName) {
     console.error('❌ Error: Bot name is required');
@@ -42,7 +51,6 @@ export async function createBot(botName: string | undefined): Promise<void> {
     process.exit(1);
   }
 
-  // Validate bot name (similar to state name validation)
   if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(botName)) {
     console.error(
       '❌ Error: Bot name must start with a letter and contain only letters, numbers, underscores, and hyphens'
@@ -50,9 +58,12 @@ export async function createBot(botName: string | undefined): Promise<void> {
     process.exit(1);
   }
 
+  const pm = getPackageManager();
+  const pmInstall = pm === 'pnpm' ? 'pnpm install' : 'npm install';
+  const pmRun = pm === 'pnpm' ? 'pnpm run' : 'npm run';
+
   const targetDir = path.resolve(process.cwd(), botName);
 
-  // Check if directory already exists
   if (fs.existsSync(targetDir)) {
     console.error(`❌ Error: Directory "${botName}" already exists`);
     process.exit(1);
@@ -100,26 +111,25 @@ export async function createBot(botName: string | undefined): Promise<void> {
   // Run automated setup commands
   console.log('\n📦 Installing dependencies...');
   try {
-    execSync('npm install', { stdio: 'inherit' });
+    execSync(pmInstall, { stdio: 'inherit' });
     console.log('✅ Dependencies installed\n');
   } catch {
-    console.error('❌ Failed to install dependencies. Please run "npm install" manually.\n');
+    console.error(`❌ Failed to install dependencies. Please run "${pmInstall}" manually.\n`);
     process.exit(1);
   }
 
-  // Use a temporary SQLite database for initial setup
   const tempDbUrl = 'file:./dev.db';
 
   console.log('🗄️  Generating Prisma client...');
   try {
-    execSync('npm run db:generate', {
+    execSync(`${pmRun} db:generate`, {
       stdio: 'inherit',
       env: { ...process.env, DATABASE_URL: tempDbUrl },
     });
     console.log('✅ Prisma client generated\n');
   } catch {
     console.error(
-      '❌ Failed to generate Prisma client. Please run "npm run db:generate" manually.\n'
+      `❌ Failed to generate Prisma client. Please run "${pmRun} db:generate" manually.\n`
     );
     process.exit(1);
   }
@@ -133,7 +143,7 @@ export async function createBot(botName: string | undefined): Promise<void> {
     console.log('✅ Database migration created\n');
   } catch {
     console.error(
-      '❌ Failed to create database migration. Please run "npm run db:migrate" manually.\n'
+      `❌ Failed to create database migration. Please run "${pmRun} db:migrate" manually.\n`
     );
     process.exit(1);
   }
@@ -142,5 +152,5 @@ export async function createBot(botName: string | undefined): Promise<void> {
   console.log('Next steps:');
   console.log(`  cd ${botName}`);
   console.log('  cp .env.example .env  # Add your bot token from @BotFather');
-  console.log('  npm run dev');
+  console.log(`  ${pmRun} dev`);
 }

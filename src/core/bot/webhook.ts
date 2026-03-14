@@ -72,20 +72,15 @@ export function createBot(config: Omit<WebhookConfig, 'webhookUrl' | 'port'>): B
     return next();
   });
 
-  // Handle text messages
-  bot.on('message:text', async (ctx) => {
-    const text = ctx.message.text;
+  // Handle all updates (messages, callbacks, polls, etc.)
+  bot.use(async (ctx) => {
     const session = ctx.session;
 
     // Create handler context compatible with existing handlers
     const handlerContext = createHandlerContext(ctx, session, database);
 
     // Execute onResponse handler for current state
-    const nextState = await appBuilder.executeOnResponse(
-      session.currentState,
-      handlerContext,
-      text
-    );
+    const nextState = await appBuilder.executeOnResponse(session.currentState, handlerContext);
 
     // Handle state transition (call onEnter even for same state)
     if (nextState) {
@@ -142,7 +137,18 @@ export async function startWebhookMode(config: WebhookConfig): Promise<void> {
     // Set webhook with Telegram
     try {
       await bot.api.setWebhook(webhookUrl, {
-        allowed_updates: ['message'],
+        allowed_updates: [
+          'message',
+          'edited_message',
+          'channel_post',
+          'edited_channel_post',
+          'callback_query',
+          'inline_query',
+          'poll',
+          'poll_answer',
+          'my_chat_member',
+          'chat_member',
+        ],
       });
       console.log('✅ Webhook set successfully with Telegram');
     } catch (error) {
@@ -160,7 +166,18 @@ export async function setWebhook(token: string, webhookUrl: string): Promise<voi
 
   try {
     await bot.api.setWebhook(webhookUrl, {
-      allowed_updates: ['message'],
+      allowed_updates: [
+        'message',
+        'edited_message',
+        'channel_post',
+        'edited_channel_post',
+        'callback_query',
+        'inline_query',
+        'poll',
+        'poll_answer',
+        'my_chat_member',
+        'chat_member',
+      ],
     });
     console.log('✅ Webhook set successfully');
   } catch (error) {
@@ -217,10 +234,7 @@ function createHandlerContext(
     telegramId: ctx.from?.id || 0,
     chatId: ctx.chat?.id || 0,
     currentState: session.currentState,
-
-    send: async (text: string) => {
-      await ctx.reply(text, { parse_mode: 'Markdown' });
-    },
+    ctx: ctx,
 
     setData: <T>(key: string, value: T) => {
       localStateData[key] = value;

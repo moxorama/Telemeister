@@ -21,6 +21,9 @@ export type {
   StateHandlers,
 } from './types.js';
 
+// Re-export Grammy Context type for user convenience
+export type { Context } from 'grammy';
+
 // Re-export bot runtime for convenience
 // Full exports available at 'telemeister/core/bot'
 export {
