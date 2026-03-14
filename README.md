@@ -218,13 +218,21 @@ import type { MenuTransitions } from './bot-state-types.js';
 appBuilder
   .forState('menu')
   .onEnter(async (context: AppContext): MenuTransitions => {
-    await context.send('Welcome to menu!');
+    await context.ctx.reply('Welcome to menu!');
     // Can only return 'idle', 'welcome', or void
   })
-  .onResponse(async (context: AppContext, response): MenuTransitions => {
-    if (response === 'back') return 'welcome'; // ✅ Valid
-    if (response === 'exit') return 'idle';    // ✅ Valid
-    return 'invalid';  // ❌ Type error - not in transitions
+  .onResponse(async (context: AppContext): MenuTransitions => {
+    // Handle text messages
+    if (context.ctx.message?.text === 'back') return 'welcome'; // ✅ Valid
+    if (context.ctx.message?.text === 'exit') return 'idle';    // ✅ Valid
+    
+    // Handle inline button callbacks
+    if (context.ctx.callbackQuery?.data === 'go_back') {
+      await context.ctx.answerCallbackQuery();
+      return 'welcome';
+    }
+    
+    // return 'invalid';  // ❌ Type error - not in transitions
   });
 ```
 
@@ -238,8 +246,8 @@ interface BotHandlerContext<TState> {
   chatId: number;
   currentState: TState;
 
-  // Messaging
-  send: (text: string) => Promise<unknown>;
+  // Grammy context - full Telegram API access
+  ctx: Context;  // See https://grammy.dev/guide/context
 
   // Data persistence (per-user)
   setData: <T>(key: string, value: T) => void;
@@ -250,21 +258,55 @@ interface BotHandlerContext<TState> {
 }
 ```
 
+The `ctx` property provides full access to Grammy's Context API:
+- `ctx.reply()`, `ctx.replyWithPhoto()`, `ctx.replyWithPoll()`, etc.
+- `ctx.message?.text` - Text messages
+- `ctx.callbackQuery?.data` - Inline button callbacks  
+- `ctx.message?.photo` - Photo messages
+- `ctx.pollAnswer` - Poll responses
+- See [Grammy docs](https://grammy.dev/guide/context) for full API
+
 ### Handler Types
 
 ```typescript
 // Called when entering a state
 .onEnter(async (context) => {
-  await context.send("Welcome!");
+  // Access Grammy via context.ctx
+  await context.ctx.reply("Welcome!", {
+    reply_markup: {
+      inline_keyboard: [[{ text: 'Click', callback_data: 'click' }]]
+    }
+  });
   // Optionally return a state for immediate transition
   return "anotherState";
 })
 
-// Called when user sends a message
-.onResponse(async (context, response) => {
-  // Return state name to transition, or void/undefined to stay
-  if (response === "yes") return "confirmed";
-  return "cancelled";
+// Called when user sends any update (message, callback, poll, etc.)
+.onResponse(async (context) => {
+  // Text message
+  if (context.ctx.message?.text === "yes") {
+    await context.ctx.reply("Confirmed!");
+    return "confirmed";
+  }
+  
+  // Inline button callback
+  if (context.ctx.callbackQuery?.data === "click") {
+    await context.ctx.answerCallbackQuery();
+    await context.ctx.reply("Button clicked!");
+    return "clicked";
+  }
+  
+  // Photo message
+  if (context.ctx.message?.photo) {
+    await context.ctx.replyWithPhoto(context.ctx.message.photo[0].file_id);
+  }
+  
+  // Poll response
+  if (context.ctx.pollAnswer) {
+    // Handle poll answer
+  }
+  
+  // Return void to stay in current state
 })
 ```
 

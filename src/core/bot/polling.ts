@@ -69,20 +69,15 @@ export function createBot(config: PollingConfig): Bot<BotContext> {
     return next();
   });
 
-  // Handle text messages
-  bot.on('message:text', async (ctx) => {
-    const text = ctx.message.text;
+  // Handle all updates (messages, callbacks, polls, etc.)
+  bot.use(async (ctx) => {
     const session = ctx.session;
 
     // Create handler context compatible with existing handlers
     const handlerContext = createHandlerContext(ctx, session, database);
 
     // Execute onResponse handler for current state
-    const nextState = await appBuilder.executeOnResponse(
-      session.currentState,
-      handlerContext,
-      text
-    );
+    const nextState = await appBuilder.executeOnResponse(session.currentState, handlerContext);
 
     // Handle state transition (call onEnter even for same state)
     if (nextState) {
@@ -129,10 +124,7 @@ function createHandlerContext(
     telegramId: ctx.from?.id || 0,
     chatId: ctx.chat?.id || 0,
     currentState: session.currentState,
-
-    send: async (text: string) => {
-      await ctx.reply(text, { parse_mode: 'Markdown' });
-    },
+    ctx: ctx,
 
     setData: <T>(key: string, value: T) => {
       localStateData[key] = value;
