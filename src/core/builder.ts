@@ -26,8 +26,8 @@ class StateBuilder<TState extends BotState = BotState> {
    * Can optionally return a state name to immediately transition to
    *
    * Example:
-   *   .onEnter(async (ctx) => {
-   *     await ctx.send('Welcome!');
+   *   .onEnter(async (context) => {
+   *     await context.ctx.reply('Welcome!');
    *     // Optionally transition immediately:
    *     return 'anotherState';
    *   })
@@ -41,11 +41,11 @@ class StateBuilder<TState extends BotState = BotState> {
 
   /**
    * Set the onResponse handler for this state
-   * Called when the user sends a message while in this state
+   * Called when the user sends any update while in this state
    *
    * Example:
-   *   .onResponse(async (ctx, response) => {
-   *     if (response === 'yes') {
+   *   .onResponse(async (context) => {
+   *     if (context.ctx.message?.text === 'yes') {
    *       return 'confirmed';
    *     }
    *     return 'cancelled';
@@ -107,11 +107,11 @@ class MultiStateBuilder<TState extends BotState = BotState> {
  *
  * typedBuilder
  *   .forState('welcome')
- *   .onEnter(async (ctx) => {
- *     await ctx.send('Welcome!');
+ *   .onEnter(async (context) => {
+ *     await context.ctx.reply('Welcome!');
  *     return 'menu'; // ✅ Type-safe: only 'idle' | 'welcome' | 'menu' | 'collectName' allowed
  *   })
- *   .onResponse(async (ctx, response) => {
+ *   .onResponse(async (context) => {
  *     return 'collectName'; // ✅ Also type-safe
  *   });
  * ```

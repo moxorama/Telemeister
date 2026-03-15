@@ -11,17 +11,20 @@ import { stateSync } from './state-manager.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Get the package root directory (works for both dist/cli/ and bin/ locations)
 function getPackageRoot(): string {
-  // __dirname is either dist/cli/ (from tsc) or bin/ (from bundle)
   const currentDir = __dirname;
-  // If we're in dist/cli/, go up 2 levels to get package root
-  // If we're in bin/, go up 1 level to get package root
   const baseName = path.basename(currentDir);
   if (baseName === 'cli' || baseName === 'dist') {
     return path.join(currentDir, '..', '..');
   }
   return path.join(currentDir, '..');
+}
+
+function getPackageVersion(): string {
+  const packageRoot = getPackageRoot();
+  const packageJsonPath = path.join(packageRoot, 'package.json');
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+  return packageJson.version;
 }
 
 function loadTemplate(templateName: string): string {
@@ -101,7 +104,7 @@ export async function createBot(botName: string | undefined): Promise<void> {
   fs.writeFileSync(path.join(targetDir, 'README.md'), renderTemplate('README.md.ejs', { botName }));
   fs.writeFileSync(
     path.join(targetDir, 'package.json'),
-    renderTemplate('package.json.ejs', { botName })
+    renderTemplate('package.json.ejs', { botName, telemeisterVersion: getPackageVersion() })
   );
 
   // Sync handlers and types from bot.json

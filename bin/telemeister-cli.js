@@ -1069,6 +1069,12 @@ function getPackageRoot2() {
   }
   return path3.join(currentDir, "..");
 }
+function getPackageVersion() {
+  const packageRoot = getPackageRoot2();
+  const packageJsonPath = path3.join(packageRoot, "package.json");
+  const packageJson = JSON.parse(fs3.readFileSync(packageJsonPath, "utf-8"));
+  return packageJson.version;
+}
 function loadTemplate(templateName) {
   const packageRoot = getPackageRoot2();
   const templatePath = path3.join(packageRoot, "dist", "templates", templateName);
@@ -1119,7 +1125,7 @@ async function createBot(botName) {
   fs3.mkdirSync(path3.join(targetDir, "src", "lib"), { recursive: true });
   fs3.writeFileSync(path3.join(targetDir, "src", "lib", "database.ts"), loadTemplate("database.ts.ejs"));
   fs3.writeFileSync(path3.join(targetDir, "README.md"), renderTemplate("README.md.ejs", { botName }));
-  fs3.writeFileSync(path3.join(targetDir, "package.json"), renderTemplate("package.json.ejs", { botName }));
+  fs3.writeFileSync(path3.join(targetDir, "package.json"), renderTemplate("package.json.ejs", { botName, telemeisterVersion: getPackageVersion() }));
   process.chdir(targetDir);
   await stateSync();
   console.log("\n\u{1F4E6} Installing dependencies...");
