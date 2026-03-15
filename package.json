@@ -42,7 +42,8 @@
     "lint": "eslint src/ scripts/",
     "lint:fix": "eslint src/ scripts/ --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "release": "./scripts/release.sh"
   },
   "workspaces": [
     "examples/*"
