@@ -27,9 +27,19 @@ export type ResponseHandler<TState extends BotState = BotState> = (
   context: BotHandlerContext<TState>
 ) => Promise<TState | void>;
 
+export type CommandHandler<TState extends BotState = BotState> = (
+  context: BotHandlerContext<TState>
+) => Promise<TState | void>;
+
 export interface StateHandlers<TState extends BotState = BotState> {
   onEnter?: EnterHandler<TState>;
   onResponse?: ResponseHandler<TState>;
+  onCommand?: Map<string, CommandHandler<TState>>;
+}
+
+export interface CommandHandlers<TState extends BotState = BotState> {
+  global: Map<string, CommandHandler<TState>>;
+  byState: Map<TState, Map<string, CommandHandler<TState>>>;
 }
 
 export type ExtractStates<T> = T extends StateHandlers<infer S> ? S : never;

@@ -51,6 +51,7 @@ export function createBot(config: PollingConfig): Bot<BotContext> {
 
     const telegramIdStr = telegramId.toString();
     const chatId = ctx.chat?.id.toString() ?? ctx.session?.chatId;
+    const username = ctx.from?.username;
 
     if (!chatId) {
       return next();
@@ -59,6 +60,7 @@ export function createBot(config: PollingConfig): Bot<BotContext> {
     // Get or create user session
     const { session: userSession, isNew } = await getOrCreateSession(
       telegramIdStr,
+      username,
       chatId,
       database
     );
@@ -91,8 +93,19 @@ export function createBot(config: PollingConfig): Bot<BotContext> {
     // Create handler context compatible with existing handlers
     const handlerContext = createHandlerContext(ctx, session, database);
 
-    // Execute onResponse handler for current state
-    const nextState = await appBuilder.executeOnResponse(session.currentState, handlerContext);
+    // Check for commands first
+    const text = ctx.message?.text?.trim();
+    let nextState: string | void = undefined;
+
+    if (text && text.startsWith('/')) {
+      const command = text.split(' ')[0].slice(1).toLowerCase(); // Remove leading slash
+      nextState = await appBuilder.executeCommand(command, session.currentState, handlerContext);
+    }
+
+    // If no command handled or command returned void, execute onResponse handler
+    if (nextState === undefined) {
+      nextState = await appBuilder.executeOnResponse(session.currentState, handlerContext);
+    }
 
     // Handle state transition (call onEnter even for same state)
     if (nextState) {

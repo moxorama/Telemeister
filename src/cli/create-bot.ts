@@ -39,12 +39,8 @@ function renderTemplate(templateName: string, data: Record<string, unknown> = {}
 }
 
 function getPackageManager(): string {
-  try {
-    execSync('pnpm --version', { stdio: 'ignore' });
-    return 'pnpm';
-  } catch {
-    return 'npm';
-  }
+  // Always use npm for native dependency compilation (better-sqlite3)
+  return 'npm';
 }
 
 export async function createBot(botName: string | undefined): Promise<void> {

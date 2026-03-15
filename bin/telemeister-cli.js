@@ -1085,12 +1085,7 @@ function renderTemplate(templateName, data = {}) {
   return ejs_default.render(template, data);
 }
 function getPackageManager() {
-  try {
-    execSync("pnpm --version", { stdio: "ignore" });
-    return "pnpm";
-  } catch {
-    return "npm";
-  }
+  return "npm";
 }
 async function createBot(botName) {
   if (!botName) {

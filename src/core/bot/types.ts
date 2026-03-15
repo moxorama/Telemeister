@@ -11,6 +11,7 @@
 export interface UserData {
   id: number;
   telegramId: string;
+  username?: string | null;
   chatId: string;
   currentState: string;
   info?: {
@@ -36,6 +37,7 @@ export interface DatabaseAdapter {
    */
   createOrUpdateUser(data: {
     telegramId: string;
+    username?: string;
     chatId: string;
     currentState?: string;
     stateData?: Record<string, unknown>;

@@ -54,6 +54,7 @@ export function createBot(config: Omit<WebhookConfig, 'webhookUrl' | 'port'>): B
 
     const telegramIdStr = telegramId.toString();
     const chatId = ctx.chat?.id.toString() ?? ctx.session?.chatId;
+    const username = ctx.from?.username;
 
     if (!chatId) {
       return next();
@@ -62,6 +63,7 @@ export function createBot(config: Omit<WebhookConfig, 'webhookUrl' | 'port'>): B
     // Get or create user session
     const { session: userSession, isNew } = await getOrCreateSession(
       telegramIdStr,
+      username,
       chatId,
       database
     );
@@ -94,8 +96,19 @@ export function createBot(config: Omit<WebhookConfig, 'webhookUrl' | 'port'>): B
     // Create handler context compatible with existing handlers
     const handlerContext = createHandlerContext(ctx, session, database);
 
-    // Execute onResponse handler for current state
-    const nextState = await appBuilder.executeOnResponse(session.currentState, handlerContext);
+    // Check for commands first
+    const text = ctx.message?.text?.trim();
+    let nextState: string | void = undefined;
+
+    if (text && text.startsWith('/')) {
+      const command = text.split(' ')[0].slice(1).toLowerCase(); // Remove leading slash
+      nextState = await appBuilder.executeCommand(command, session.currentState, handlerContext);
+    }
+
+    // If no command handled or command returned void, execute onResponse handler
+    if (nextState === undefined) {
+      nextState = await appBuilder.executeOnResponse(session.currentState, handlerContext);
+    }
 
     // Handle state transition (call onEnter even for same state)
     if (nextState) {
@@ -105,17 +118,6 @@ export function createBot(config: Omit<WebhookConfig, 'webhookUrl' | 'port'>): B
       session.stateData =
         handlerContext.getData<Record<string, unknown>>('__all') || session.stateData;
     }
-  });
-
-  // Handle /start command
-  bot.command('start', async (ctx) => {
-    const session = ctx.session;
-
-    // Create handler context
-    const handlerContext = createHandlerContext(ctx, session, database);
-
-    // Transition to welcome state
-    await transitionToState(ctx, session, 'welcome', handlerContext, database);
   });
 
   return bot;

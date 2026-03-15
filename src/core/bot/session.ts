@@ -66,6 +66,7 @@ export class SessionStorageAdapter implements StorageAdapter<SessionData> {
  */
 export async function getOrCreateSession(
   telegramId: string,
+  username: string | undefined,
   chatId: string,
   database: DatabaseAdapter
 ): Promise<SessionResult> {
@@ -90,6 +91,7 @@ export async function getOrCreateSession(
   // Create new user
   const newUser = await database.createOrUpdateUser({
     telegramId,
+    username,
     chatId,
     currentState: 'idle',
     stateData: {},

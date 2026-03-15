@@ -1,0 +1,70 @@
+/**
+ * Global Command Handlers
+ * 
+ * These commands work across all states unless overridden by state-specific
+ * command handlers defined in individual state handlers.
+ * 
+ * Command handlers are checked BEFORE onResponse handlers and take priority.
+ * If a command handler returns a state, the bot transitions to that state.
+ * If a command handler returns void/undefined, the onResponse handler runs.
+ */
+
+import { appBuilder, type AppContext } from 'telemeister/core';
+import type { BotStateTransitions } from '../bot-state-types.js';
+
+/**
+ * Global /start command
+ * Works in all states, returns user to welcome state
+ */
+appBuilder.onCommand('start', async (context: AppContext): Promise<BotStateTransitions> => {
+  await context.reply('Welcome back! 👋');
+  return 'welcome';
+});
+
+/**
+ * Global /help command
+ * Shows help text but doesn't change state
+ */
+appBuilder.onCommand('help', async (context: AppContext): Promise<void> => {
+  await context.reply(`
+🤖 *Available Commands*
+
+/start - Start the bot
+/help - Show this help message
+/cancel - Cancel current operation
+/settings - Open settings menu
+
+Navigate using the buttons below.
+  `, { parse_mode: 'Markdown' });
+});
+
+/**
+ * Global /cancel command
+ * Cancels current operation and returns to main menu
+ */
+appBuilder.onCommand('cancel', async (context: AppContext): Promise<BotStateTransitions | void> => {
+  // Different behavior based on current state
+  if (context.currentState === 'welcome') {
+    await context.reply('Nothing to cancel here!');
+    return; // Stay in current state
+  }
+
+  await context.reply('Operation cancelled. Returning to main menu...');
+  return 'mainMenu';
+});
+
+/**
+ * Example: State-specific command override
+ * In 'orderForm' state, /cancel behaves differently
+ * 
+ * This would go in src/handlers/orderForm/index.ts:
+ *
+ * appBuilder
+ *   .forState('orderForm')
+ *   .onCommand('cancel', async (context) => {
+ *     await context.reply('Cancel order? Your progress will be lost.');
+ *     return 'confirmCancel';
+ *   });
+ */
+
+console.log('✅ Global commands registered: /start, /help, /cancel');

@@ -4,6 +4,7 @@ import type {
   EnterHandler,
   ResponseHandler,
   StateHandlers,
+  CommandHandler,
 } from './types.js';
 
 /**
@@ -57,6 +58,26 @@ class StateBuilder<TState extends BotState = BotState> {
     this.handlers.set(this.state, existing);
     return this;
   }
+
+  /**
+   * Set a command handler for this state (overrides global commands)
+   * Called when user sends this command while in this state
+   *
+   * Example:
+   *   .onCommand('cancel', async (context) => {
+   *     await context.reply('Operation cancelled');
+   *     return 'mainMenu';
+   *   })
+   */
+  onCommand(command: string, handler: CommandHandler<TState>): this {
+    const existing = this.handlers.get(this.state) || {};
+    if (!existing.onCommand) {
+      existing.onCommand = new Map<string, CommandHandler<TState>>();
+    }
+    existing.onCommand.set(command.toLowerCase(), handler);
+    this.handlers.set(this.state, existing);
+    return this;
+  }
 }
 
 /**
@@ -86,6 +107,21 @@ class MultiStateBuilder<TState extends BotState = BotState> {
     for (const state of this.states) {
       const existing = this.handlers.get(state) || {};
       existing.onResponse = handler;
+      this.handlers.set(state, existing);
+    }
+    return this;
+  }
+
+  /**
+   * Set a command handler for all these states (overrides global commands)
+   */
+  onCommand(command: string, handler: CommandHandler<TState>): this {
+    for (const state of this.states) {
+      const existing = this.handlers.get(state) || {};
+      if (!existing.onCommand) {
+        existing.onCommand = new Map<string, CommandHandler<TState>>();
+      }
+      existing.onCommand.set(command.toLowerCase(), handler);
       this.handlers.set(state, existing);
     }
     return this;
@@ -120,6 +156,7 @@ class MultiStateBuilder<TState extends BotState = BotState> {
  */
 export class BotBuilder<TState extends BotState = BotState> {
   private handlers = new Map<TState, StateHandlers<TState>>();
+  private globalCommandHandlers = new Map<string, CommandHandler<TState>>();
 
   /**
    * Register handlers for one or more states using chaining
@@ -157,6 +194,45 @@ export class BotBuilder<TState extends BotState = BotState> {
   onResponse(state: TState, handler: ResponseHandler<TState>): this {
     const existing = this.handlers.get(state) || {};
     existing.onResponse = handler;
+    this.handlers.set(state, existing);
+    return this;
+  }
+
+  /**
+   * Register a global command handler (works in all states unless overridden)
+   * @param command - Command name without leading slash (e.g., 'start', 'help')
+   * @param handler - Handler function
+   * @returns this for chaining
+   * @example
+   *   .onCommand('start', async (context) => {
+   *     await context.reply('Welcome!');
+   *     return 'welcome';
+   *   })
+   */
+  onCommand(command: string, handler: CommandHandler<TState>): this {
+    this.globalCommandHandlers.set(command.toLowerCase(), handler);
+    return this;
+  }
+
+  /**
+   * Register a command handler for a specific state (overrides global)
+   * @param state - State name
+   * @param command - Command name without leading slash
+   * @param handler - Handler function
+   * @returns this for chaining
+   * @example
+   *   .onCommand('cancel', 'order', async (context) => {
+   *     // Only works when user is in 'order' state
+   *     await context.reply('Order cancelled');
+   *     return 'mainMenu';
+   *   })
+   */
+  onCommandForState(state: TState, command: string, handler: CommandHandler<TState>): this {
+    const existing = this.handlers.get(state) || {};
+    if (!existing.onCommand) {
+      existing.onCommand = new Map<string, CommandHandler<TState>>();
+    }
+    existing.onCommand.set(command.toLowerCase(), handler);
     this.handlers.set(state, existing);
     return this;
   }
@@ -217,6 +293,53 @@ export class BotBuilder<TState extends BotState = BotState> {
   getHandlers(state: TState): StateHandlers<TState> | undefined {
     return this.handlers.get(state);
   }
+
+  /**
+   * Execute a command handler
+   * @internal Called by the bot handlers
+   * @returns The next state to transition to, or void
+   *
+   * Priority order:
+   * 1. State-specific command handler (if exists)
+   * 2. Global command handler (if exists)
+   * 3. None - let state onResponse handle it
+   */
+  async executeCommand(
+    command: string,
+    currentState: TState,
+    context: BotHandlerContext<TState>
+  ): Promise<TState | void> {
+    const normalizedCommand = command.toLowerCase();
+
+    // First check for state-specific command handler
+    const stateHandlers = this.handlers.get(currentState);
+    const stateCommandHandler = stateHandlers?.onCommand?.get(normalizedCommand);
+    if (stateCommandHandler) {
+      return await stateCommandHandler(context);
+    }
+
+    // Fall back to global command handler
+    const globalHandler = this.globalCommandHandlers.get(normalizedCommand);
+    if (globalHandler) {
+      return await globalHandler(context);
+    }
+  }
+
+  /**
+   * Check if a command has a registered handler (global or for specific state)
+   */
+  hasCommandHandler(command: string, state?: TState): boolean {
+    const normalizedCommand = command.toLowerCase();
+
+    if (state) {
+      const stateHandlers = this.handlers.get(state);
+      if (stateHandlers?.onCommand?.has(normalizedCommand)) {
+        return true;
+      }
+    }
+
+    return this.globalCommandHandlers.has(normalizedCommand);
+  }
 }
 
 /**
@@ -230,4 +353,10 @@ export class BotBuilder<TState extends BotState = BotState> {
 export const botBuilder = new BotBuilder();
 
 // Re-export types for convenience
-export type { BotHandlerContext, BotState, EnterHandler, ResponseHandler } from './types.js';
+export type {
+  BotHandlerContext,
+  BotState,
+  EnterHandler,
+  ResponseHandler,
+  CommandHandler,
+} from './types.js';
