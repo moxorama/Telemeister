@@ -11,7 +11,7 @@ appBuilder
       .row()
       .text('Back to Welcome', 'welcome');
 
-    await context.ctx.reply('Menu: Choose an option', { reply_markup: keyboard });
+    await context.reply('Menu: Choose an option', { reply_markup: keyboard });
   })
 
   .onResponse(async (context: AppContext): MenuTransitions => {
@@ -25,14 +25,14 @@ appBuilder
         case 'welcome':
           return 'welcome';
         default:
-          await context.ctx.reply(`Unknown action: ${data}`);
+          await context.reply(`Unknown action: ${data}`);
       }
       return;
     }
 
     const text = context.ctx.message?.text?.trim();
     if (text) {
-      await context.ctx.reply(`You said: ${text}`);
+      await context.reply(`You said: ${text}`);
     }
   });
 

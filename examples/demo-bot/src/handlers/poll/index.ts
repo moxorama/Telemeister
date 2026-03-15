@@ -14,14 +14,14 @@ appBuilder
     });
 
     const keyboard = new InlineKeyboard().text('Back to Menu', 'back');
-    await context.ctx.reply('Vote above, or click below to return:', { reply_markup: keyboard });
+    await context.reply('Vote above, or click below to return:', { reply_markup: keyboard });
   })
 
   .onResponse(async (context: AppContext): PollTransitions => {
     if (context.ctx.pollAnswer) {
       const optionIds = context.ctx.pollAnswer.option_ids;
-      const selected = optionIds.map((id) => POLL_OPTIONS[id]).join(', ');
-      await context.ctx.reply(`You voted for: ${selected}`);
+      const selected = optionIds.map((id: number) => POLL_OPTIONS[id]).join(', ');
+      await context.reply(`You voted for: ${selected}`);
       return;
     }
 

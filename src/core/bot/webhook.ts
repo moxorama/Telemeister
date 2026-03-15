@@ -242,11 +242,12 @@ function createHandlerContext(
   database: DatabaseAdapter
 ): BotHandlerContext<string> {
   const localStateData = { ...session.stateData };
+  const chatId = ctx.chat?.id ?? (session.chatId ? parseInt(session.chatId, 10) : 0);
 
   return {
     userId: session.userId || 0,
     telegramId: extractUserId(ctx) || 0,
-    chatId: ctx.chat?.id ?? (session.chatId ? parseInt(session.chatId, 10) : 0),
+    chatId,
     currentState: session.currentState,
     ctx: ctx,
 
@@ -269,6 +270,10 @@ function createHandlerContext(
         createHandlerContext(ctx, session, database),
         database
       );
+    },
+
+    reply: (text, extra) => {
+      return ctx.api.sendMessage(chatId, text, extra);
     },
   };
 }

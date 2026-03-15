@@ -218,20 +218,20 @@ import type { MenuTransitions } from './bot-state-types.js';
 appBuilder
   .forState('menu')
   .onEnter(async (context: AppContext): MenuTransitions => {
-    await context.ctx.reply('Welcome to menu!');
+    await context.reply('Welcome to menu!');
     // Can only return 'idle', 'welcome', or void
   })
   .onResponse(async (context: AppContext): MenuTransitions => {
     // Handle text messages
     if (context.ctx.message?.text === 'back') return 'welcome'; // ✅ Valid
     if (context.ctx.message?.text === 'exit') return 'idle';    // ✅ Valid
-    
+
     // Handle inline button callbacks
     if (context.ctx.callbackQuery?.data === 'go_back') {
       await context.ctx.answerCallbackQuery();
       return 'welcome';
     }
-    
+
     // return 'invalid';  // ❌ Type error - not in transitions
   });
 ```
@@ -255,24 +255,29 @@ interface BotHandlerContext<TState> {
 
   // State transition
   transition: (toState: TState) => Promise<void>;
+
+  // Universal reply - works with messages, callbacks, and poll answers
+  reply: (text: string, extra?) => Promise<Message>;
 }
 ```
 
 The `ctx` property provides full access to Grammy's Context API:
-- `ctx.reply()`, `ctx.replyWithPhoto()`, `ctx.replyWithPoll()`, etc.
 - `ctx.message?.text` - Text messages
-- `ctx.callbackQuery?.data` - Inline button callbacks  
+- `ctx.callbackQuery?.data` - Inline button callbacks
 - `ctx.message?.photo` - Photo messages
 - `ctx.pollAnswer` - Poll responses
+- `ctx.api.sendMessage()`, `ctx.replyWithPoll()`, `ctx.replyWithPhoto()`, etc. - Send messages
 - See [Grammy docs](https://grammy.dev/guide/context) for full API
+
+**Note:** Use `context.reply()` instead of `context.ctx.reply()` for universal reply that works with all update types (messages, callbacks, poll answers).
 
 ### Handler Types
 
 ```typescript
 // Called when entering a state
 .onEnter(async (context) => {
-  // Access Grammy via context.ctx
-  await context.ctx.reply("Welcome!", {
+  // Use context.reply() for universal reply
+  await context.reply("Welcome!", {
     reply_markup: {
       inline_keyboard: [[{ text: 'Click', callback_data: 'click' }]]
     }
@@ -285,14 +290,14 @@ The `ctx` property provides full access to Grammy's Context API:
 .onResponse(async (context) => {
   // Text message
   if (context.ctx.message?.text === "yes") {
-    await context.ctx.reply("Confirmed!");
+    await context.reply("Confirmed!");
     return "confirmed";
   }
-  
+
   // Inline button callback
   if (context.ctx.callbackQuery?.data === "click") {
     await context.ctx.answerCallbackQuery();
-    await context.ctx.reply("Button clicked!");
+    await context.reply("Button clicked!");
     return "clicked";
   }
   
@@ -303,7 +308,8 @@ The `ctx` property provides full access to Grammy's Context API:
   
   // Poll response
   if (context.ctx.pollAnswer) {
-    // Handle poll answer
+    const optionIds = context.ctx.pollAnswer.option_ids;
+    await context.reply(`You selected options: ${optionIds.join(', ')}`);
   }
   
   // Return void to stay in current state

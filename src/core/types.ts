@@ -1,10 +1,8 @@
 import type { Context } from 'grammy';
 import { BotBuilder } from './builder.js';
 
-// Generic appBuilder - users should cast to their specific state type
 export const appBuilder = new BotBuilder<string>();
 
-// Generic AppContext - users should use their own state-specific types
 export type AppContext = BotHandlerContext<string>;
 
 export type BotState = string;
@@ -18,6 +16,7 @@ export interface BotHandlerContext<TState extends BotState = BotState> {
   setData: <T>(key: string, value: T) => void;
   getData: <T>(key: string) => T | undefined;
   transition: (toState: TState) => Promise<void>;
+  reply: (text: string, extra?: Parameters<Context['reply']>[1]) => ReturnType<Context['reply']>;
 }
 
 export type EnterHandler<TState extends BotState = BotState> = (

@@ -255,16 +255,32 @@ interface BotHandlerContext<TState> {
   setData: <T>(key: string, value: T) => void; // Store data
   getData: <T>(key: string) => T | undefined;  // Retrieve data
   transition: (toState: TState) => Promise<void>; // Manual transition
+  reply: (text: string, extra?) => Promise<Message>; // Universal reply
 }
 ```
 
 The `ctx` property provides full access to Grammy's Context API:
-- `ctx.reply()`, `ctx.replyWithPhoto()`, `ctx.replyWithPoll()`, etc. - Send messages
 - `ctx.message?.text` - Text messages
 - `ctx.callbackQuery?.data` - Inline button callbacks
 - `ctx.message?.photo` - Photo messages
 - `ctx.pollAnswer` - Poll responses
+- `ctx.api.sendMessage()`, `ctx.replyWithPoll()`, `ctx.replyWithPhoto()`, etc. - Send messages
 - See [Grammy docs](https://grammy.dev/guide/context) for full API
+
+### Universal Reply
+
+Always use `context.reply(text)` instead of `context.ctx.reply(text)` to ensure messages work correctly across all update types:
+
+```typescript
+// Good - works with messages, callbacks, and poll answers
+await context.reply('Hello!');
+
+// Bad - only works with messages and callbacks, fails with poll answers
+await context.ctx.reply('Hello!');
+
+// For other API methods, use ctx.api directly:
+await context.ctx.replyWithPoll('Question?', ['A', 'B', 'C']);
+await context.ctx.api.sendPhoto(context.chatId, photo);
 ```
 
 ## Working with States (CLI)
