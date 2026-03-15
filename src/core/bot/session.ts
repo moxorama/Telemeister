@@ -77,6 +77,17 @@ export async function getOrCreateSession(
       ? JSON.parse(existing.info.stateData)
       : {};
 
+    // Update username if it has changed
+    if (username !== undefined && existing.username !== username) {
+      await database.createOrUpdateUser({
+        telegramId,
+        username,
+        chatId,
+        currentState: existing.currentState,
+        stateData,
+      });
+    }
+
     return {
       session: {
         currentState: existing.currentState,
