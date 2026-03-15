@@ -1,5 +1,6 @@
 {
   "idle": ["welcome"],
   "welcome": ["menu"],
-  "menu": ["welcome"]
+  "menu": ["welcome", "poll"],
+  "poll": ["menu"]
 }

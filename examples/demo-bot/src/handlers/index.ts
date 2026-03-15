@@ -7,3 +7,4 @@
 import './idle/index.js';
 import './welcome/index.js';
 import './menu/index.js';
+import './poll/index.js';

@@ -22,6 +22,10 @@ export interface WebhookConfig {
   port: number;
 }
 
+function extractUserId(ctx: Context): number | undefined {
+  return ctx.from?.id ?? ctx.pollAnswer?.user?.id;
+}
+
 /**
  * Create and configure the Grammy bot (shared with polling)
  */
@@ -37,21 +41,30 @@ export function createBot(config: Omit<WebhookConfig, 'webhookUrl' | 'port'>): B
         stateData: {},
       }),
       storage: new SessionStorageAdapter(database),
-      getSessionKey: (ctx) => ctx.from?.id.toString(),
+      getSessionKey: (ctx) => extractUserId(ctx)?.toString(),
     })
   );
 
   // Ensure user exists in database on each update
   bot.use(async (ctx, next) => {
-    if (!ctx.from || !ctx.chat) {
+    const telegramId = extractUserId(ctx);
+    if (!telegramId) {
       return next();
     }
 
-    const telegramId = ctx.from.id.toString();
-    const chatId = ctx.chat.id.toString();
+    const telegramIdStr = telegramId.toString();
+    const chatId = ctx.chat?.id.toString() ?? ctx.session?.chatId;
+
+    if (!chatId) {
+      return next();
+    }
 
     // Get or create user session
-    const { session: userSession, isNew } = await getOrCreateSession(telegramId, chatId, database);
+    const { session: userSession, isNew } = await getOrCreateSession(
+      telegramIdStr,
+      chatId,
+      database
+    );
     ctx.session = userSession;
 
     // Call onEnter for initial state if this is a new session
@@ -74,6 +87,8 @@ export function createBot(config: Omit<WebhookConfig, 'webhookUrl' | 'port'>): B
 
   // Handle all updates (messages, callbacks, polls, etc.)
   bot.use(async (ctx) => {
+    if (!ctx.session) return;
+
     const session = ctx.session;
 
     // Create handler context compatible with existing handlers
@@ -226,13 +241,12 @@ function createHandlerContext(
   session: SessionData,
   database: DatabaseAdapter
 ): BotHandlerContext<string> {
-  // Local state data copy for modifications
   const localStateData = { ...session.stateData };
 
   return {
     userId: session.userId || 0,
-    telegramId: ctx.from?.id || 0,
-    chatId: ctx.chat?.id || 0,
+    telegramId: extractUserId(ctx) || 0,
+    chatId: ctx.chat?.id ?? (session.chatId ? parseInt(session.chatId, 10) : 0),
     currentState: session.currentState,
     ctx: ctx,
 
