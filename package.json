@@ -68,8 +68,7 @@
   ],
   "author": "George Khromchenko",
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "license": "GPL-3.0-only",
   "dependencies": {
