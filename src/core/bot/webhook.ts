@@ -56,6 +56,15 @@ export function createBot(config: Omit<WebhookConfig, 'webhookUrl' | 'port'>): B
     const chatId = ctx.chat?.id.toString() ?? ctx.session?.chatId;
     const username = ctx.from?.username;
 
+    // Debug logging
+    console.log('[Telemeister Debug] Webhook middleware:', {
+      telegramId: telegramIdStr,
+      chatId,
+      username,
+      hasFrom: !!ctx.from,
+      fromKeys: ctx.from ? Object.keys(ctx.from) : null,
+    });
+
     if (!chatId) {
       return next();
     }
