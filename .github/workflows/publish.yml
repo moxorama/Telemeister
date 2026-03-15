@@ -23,7 +23,11 @@ jobs:
           echo "Extracted version: $VERSION"
 
       - name: Update package.json version
-        run: npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
+        run: pnpm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -32,26 +36,23 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Update npm
-        run: npm install -g npm@latest
+        run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
       - name: Publish to NPM
         run: |
           # Remove the placeholder auth token that setup-node creates
           # It prevents npm from using OIDC Trusted Publishing
           rm -f "$NPM_CONFIG_USERCONFIG"
-          npm config set registry "https://registry.npmjs.org/"
-          npm publish --provenance --access public
+          pnpm config set registry "https://registry.npmjs.org/"
+          pnpm publish --provenance --access public
 
       - name: Commit version update
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add package.json package-lock.json
+          git add package.json pnpm-lock.yaml
           git commit -m "chore: bump version to ${{ steps.get_version.outputs.VERSION }} [skip ci]"
           git push origin HEAD:master
