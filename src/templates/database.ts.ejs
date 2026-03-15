@@ -67,9 +67,21 @@ export async function createOrUpdateUser(data: {
   currentState?: string;
   stateData?: Record<string, unknown>;
 }): Promise<UserWithInfo> {
+  console.log('[Telemeister Debug] createOrUpdateUser called:', {
+    telegramId: data.telegramId,
+    username: data.username,
+    chatId: data.chatId,
+  });
+
   const existingUser = await getUserByTelegramId(data.telegramId);
 
   if (existingUser) {
+    console.log('[Telemeister Debug] Existing user found:', {
+      id: existingUser.id,
+      username: existingUser.username,
+      willUpdateUsername: data.username !== undefined,
+    });
+
     // Update existing user
     const updatedUser = await prisma.user.update({
       where: { telegramId: data.telegramId },
@@ -79,6 +91,11 @@ export async function createOrUpdateUser(data: {
         ...(data.currentState && { currentState: data.currentState }),
       },
       include: { info: true },
+    });
+
+    console.log('[Telemeister Debug] User updated:', {
+      id: updatedUser.id,
+      username: updatedUser.username,
     });
 
     // Update or create user info if stateData provided
