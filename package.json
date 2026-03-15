@@ -34,7 +34,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc && cp -r src/templates dist/templates && pnpm run build:cli",
+    "build": "tsc && rm -rf dist/templates && cp -r src/templates dist/templates && pnpm run build:cli",
     "build:cli": "esbuild dist/cli/cli.js --bundle --platform=node --format=esm --outfile=bin/telemeister-cli.js --external:typescript --external:tsx --external:prisma",
     "example:recreate": "rm -rf examples/demo-bot && tsx src/cli/cli.ts create-bot demo-bot && mv demo-bot examples/demo-bot && npm pkg set --prefix examples/demo-bot dependencies.telemeister='workspace:*' && rm -rf examples/demo-bot/node_modules examples/demo-bot/pnpm-lock.yaml examples/demo-bot/dev.db examples/demo-bot/.env",
     "prepublishOnly": "pnpm run build",

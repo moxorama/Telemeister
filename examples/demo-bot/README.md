@@ -143,9 +143,9 @@ export async function createOrder(
   const user = await prisma.user.findUnique({
     where: { telegramId },
   });
-  
+
   if (!user) throw new Error('User not found');
-  
+
   return await prisma.order.create({
     data: {
       userId: user.id,
@@ -163,11 +163,11 @@ export async function getUserOrderStats(telegramId: string) {
       orders: true,
     },
   });
-  
+
   if (!user) return { count: 0, total: 0 };
-  
+
   const total = user.orders.reduce((sum, order) => sum + order.amount, 0);
-  
+
   return {
     count: user.orders.length,
     total,
@@ -189,7 +189,7 @@ appBuilder
   .forState('menu')
   .onEnter(async (context: AppContext): MenuTransitions => {
     const user = await getUserWithOrders(String(context.telegramId));
-    
+
     if (user?.orders.length) {
       await context.ctx.reply(`You have ${user.orders.length} orders!`);
     } else {
