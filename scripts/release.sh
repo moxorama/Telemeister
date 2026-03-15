@@ -12,8 +12,8 @@ NEW_VERSION=$(node -p "require('./package.json').version")
 pnpm version $VERSION_TYPE -m "chore: release v%s"
 NEW_VERSION=$(node -p "require('./package.json').version")
 
-echo "==> Pushing tag..."
-git push origin HEAD --tags
+echo "==> Pushing commit and tag..."
+git push origin HEAD "v$NEW_VERSION"
 
 echo "==> Creating GitHub release..."
 gh release create "v$NEW_VERSION" --title "v$NEW_VERSION" --generate-notes
