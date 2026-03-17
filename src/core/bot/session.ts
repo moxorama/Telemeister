@@ -77,17 +77,8 @@ export async function getOrCreateSession(
       ? JSON.parse(existing.info.stateData)
       : {};
 
-    // Debug logging
-    console.log('[Telemeister Debug] getOrCreateSession:', {
-      telegramId,
-      usernameFromCtx: username,
-      usernameInDb: existing.username,
-      willUpdate: username !== undefined && existing.username !== username,
-    });
-
     // Update username if it has changed
     if (username !== undefined && existing.username !== username) {
-      console.log('[Telemeister Debug] Updating username from', existing.username, 'to', username);
       await database.createOrUpdateUser({
         telegramId,
         username,

@@ -56,15 +56,6 @@ export function createBot(config: Omit<WebhookConfig, 'webhookUrl' | 'port'>): B
     const chatId = ctx.chat?.id.toString() ?? ctx.session?.chatId;
     const username = ctx.from?.username;
 
-    // Debug logging
-    console.log('[Telemeister Debug] Webhook middleware:', {
-      telegramId: telegramIdStr,
-      chatId,
-      username,
-      hasFrom: !!ctx.from,
-      fromKeys: ctx.from ? Object.keys(ctx.from) : null,
-    });
-
     if (!chatId) {
       return next();
     }
@@ -108,6 +99,7 @@ export function createBot(config: Omit<WebhookConfig, 'webhookUrl' | 'port'>): B
     // Check for commands first
     const text = ctx.message?.text?.trim();
     let nextState: string | void = undefined;
+    let commandHandled = false;
 
     if (text && text.startsWith('/')) {
       const command = text.split(' ')[0].slice(1).toLowerCase(); // Remove leading slash
@@ -116,12 +108,13 @@ export function createBot(config: Omit<WebhookConfig, 'webhookUrl' | 'port'>): B
       if (result.handled) {
         // Command was handled - use nextState if provided, otherwise stop processing
         nextState = result.nextState;
+        commandHandled = true;
       }
       // If not handled, fall through to onResponse
     }
 
-    // If no command handled or command returned void, execute onResponse handler
-    if (nextState === undefined) {
+    // If no command handled, execute onResponse handler
+    if (!commandHandled && nextState === undefined) {
       nextState = await appBuilder.executeOnResponse(session.currentState, handlerContext);
     }
 
