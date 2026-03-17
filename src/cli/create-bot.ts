@@ -43,10 +43,19 @@ function getPackageManager(): string {
   return 'npm';
 }
 
-export async function createBot(botName: string | undefined): Promise<void> {
+export async function createBot(
+  botName: string | undefined,
+  database: 'mysql' | 'sqlite' | undefined
+): Promise<void> {
   if (!botName) {
     console.error('❌ Error: Bot name is required');
-    console.error('Usage: telemeister create-bot <bot-name>');
+    console.error('Usage: telemeister create-bot <bot-name> --with-database=sqlite|mysql');
+    process.exit(1);
+  }
+
+  if (!database) {
+    console.error('❌ Error: --with-database flag is required');
+    console.error('Usage: telemeister create-bot <bot-name> --with-database=sqlite|mysql');
     process.exit(1);
   }
 
@@ -78,12 +87,15 @@ export async function createBot(botName: string | undefined): Promise<void> {
   // Create files from templates
   fs.writeFileSync(path.join(targetDir, '.gitignore'), loadTemplate('gitignore.ejs'));
   fs.writeFileSync(path.join(targetDir, 'tsconfig.json'), loadTemplate('tsconfig.json.ejs'));
-  fs.writeFileSync(path.join(targetDir, '.env.example'), loadTemplate('env.example.ejs'));
+  fs.writeFileSync(
+    path.join(targetDir, '.env.example'),
+    renderTemplate('env.example.ejs', { database })
+  );
   fs.writeFileSync(path.join(targetDir, 'bot.json'), loadTemplate('bot.json.ejs'));
   fs.writeFileSync(path.join(targetDir, 'src', 'index.ts'), loadTemplate('index.ts.ejs'));
   fs.writeFileSync(
     path.join(targetDir, 'prisma', 'schema.prisma'),
-    loadTemplate('prisma-schema.prisma.ejs')
+    renderTemplate('prisma-schema.prisma.ejs', { database })
   );
   fs.writeFileSync(path.join(targetDir, 'prisma.config.ts'), loadTemplate('prisma.config.ts.ejs'));
 
@@ -91,7 +103,7 @@ export async function createBot(botName: string | undefined): Promise<void> {
   fs.mkdirSync(path.join(targetDir, 'src', 'lib'), { recursive: true });
   fs.writeFileSync(
     path.join(targetDir, 'src', 'lib', 'database.ts'),
-    loadTemplate('database.ts.ejs')
+    renderTemplate('database.ts.ejs', { database })
   );
 
   // Note: Bot runtime files (session.ts, polling.ts, webhook.ts) are now provided by the framework
@@ -100,7 +112,11 @@ export async function createBot(botName: string | undefined): Promise<void> {
   fs.writeFileSync(path.join(targetDir, 'README.md'), renderTemplate('README.md.ejs', { botName }));
   fs.writeFileSync(
     path.join(targetDir, 'package.json'),
-    renderTemplate('package.json.ejs', { botName, telemeisterVersion: getPackageVersion() })
+    renderTemplate('package.json.ejs', {
+      botName,
+      telemeisterVersion: getPackageVersion(),
+      database,
+    })
   );
 
   // Sync handlers and types from bot.json
@@ -117,7 +133,9 @@ export async function createBot(botName: string | undefined): Promise<void> {
     process.exit(1);
   }
 
-  const tempDbUrl = 'file:./dev.db';
+  // Use appropriate temp database URL based on database type
+  const tempDbUrl =
+    database === 'mysql' ? 'mysql://root:root@localhost:3306/temp_db' : 'file:./dev.db';
 
   console.log('🗄️  Generating Prisma client...');
   try {

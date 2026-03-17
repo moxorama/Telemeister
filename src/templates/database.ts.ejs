@@ -3,36 +3,38 @@
  *
  * Implements DatabaseAdapter interface for the Telemeister framework.
  * Uses Prisma ORM 7.x with driver adapters for database operations.
- *
- * Switch between SQLite and MySQL by changing DATABASE_URL in .env:
- * - SQLite: DATABASE_URL="file:./dev.db"
- * - MySQL: DATABASE_URL="mysql://user:password@localhost:3306/dbname"
- *
- * Note: When switching providers, update the provider in prisma/schema.prisma:
- * - SQLite: provider = "sqlite"
- * - MySQL: provider = "mysql"
  */
 
 import 'dotenv/config';
+<% if (database === 'mysql') { -%>
+import { PrismaMariaDB } from '@prisma/adapter-mariadb';
+import mariadb from 'mariadb';
+<% } else { -%>
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+<% } -%>
 import { PrismaClient, User, UserInfo } from '../generated/prisma/client.js';
 import type { DatabaseAdapter, UserData } from 'telemeister/core/bot';
 
-// Determine database provider from URL
-const databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
-const isMysql = databaseUrl.startsWith('mysql:');
+<% if (database === 'mysql') { -%>
+// MySQL connection pool
+const pool = mariadb.createPool({
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '3306', 10),
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || 'root',
+  database: process.env.DB_NAME || 'telemeister',
+  connectionLimit: 10,
+});
 
-// Create adapter based on database type
-// For now, SQLite is fully supported. MySQL adapter requires additional setup.
-const adapter = isMysql
-  ? (() => {
-      throw new Error(
-        'MySQL adapter not yet configured. Please configure @prisma/adapter-mariadb in src/lib/database.ts'
-      );
-    })()
-  : new PrismaBetterSqlite3({
-      url: databaseUrl,
-    });
+// Create MariaDB adapter
+const adapter = new PrismaMariaDB(pool);
+<% } else { -%>
+// SQLite adapter
+const databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
+const adapter = new PrismaBetterSqlite3({
+  url: databaseUrl,
+});
+<% } -%>
 
 // Prisma client instance with adapter
 const prisma = new PrismaClient({ adapter });
@@ -178,6 +180,9 @@ export async function updateUserState(
  */
 export async function disconnectDB(): Promise<void> {
   await prisma.$disconnect();
+<% if (database === 'mysql') { -%>
+  await pool.end();
+<% } -%>
 }
 
 /**
@@ -188,7 +193,7 @@ export const databaseAdapter: DatabaseAdapter = {
   getUserByTelegramId: async (telegramId: string): Promise<UserData | null> => {
     const user = await getUserByTelegramId(telegramId);
     if (!user) return null;
-    
+
     return {
       id: user.id,
       telegramId: user.telegramId,

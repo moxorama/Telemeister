@@ -108,7 +108,13 @@ export function createBot(config: PollingConfig): Bot<BotContext> {
 
     if (text && text.startsWith('/')) {
       const command = text.split(' ')[0].slice(1).toLowerCase(); // Remove leading slash
-      nextState = await appBuilder.executeCommand(command, session.currentState, handlerContext);
+      const result = await appBuilder.executeCommand(command, session.currentState, handlerContext);
+
+      if (result.handled) {
+        // Command was handled - use nextState if provided, otherwise stop processing
+        nextState = result.nextState;
+      }
+      // If not handled, fall through to onResponse
     }
 
     // If no command handled or command returned void, execute onResponse handler

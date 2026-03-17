@@ -27,9 +27,13 @@ export type ResponseHandler<TState extends BotState = BotState> = (
   context: BotHandlerContext<TState>
 ) => Promise<TState | void>;
 
+export type CommandResult<TState extends BotState = BotState> =
+  | { handled: true; nextState?: TState }
+  | { handled: false };
+
 export type CommandHandler<TState extends BotState = BotState> = (
   context: BotHandlerContext<TState>
-) => Promise<TState | void>;
+) => Promise<CommandResult<TState> | TState | void>;
 
 export interface StateHandlers<TState extends BotState = BotState> {
   onEnter?: EnterHandler<TState>;

@@ -1087,10 +1087,15 @@ function renderTemplate(templateName, data = {}) {
 function getPackageManager() {
   return "npm";
 }
-async function createBot(botName) {
+async function createBot(botName, database) {
   if (!botName) {
     console.error("\u274C Error: Bot name is required");
-    console.error("Usage: telemeister create-bot <bot-name>");
+    console.error("Usage: telemeister create-bot <bot-name> --with-database=sqlite|mysql");
+    process.exit(1);
+  }
+  if (!database) {
+    console.error("\u274C Error: --with-database flag is required");
+    console.error("Usage: telemeister create-bot <bot-name> --with-database=sqlite|mysql");
     process.exit(1);
   }
   if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(botName)) {
@@ -1112,15 +1117,15 @@ async function createBot(botName) {
   fs3.mkdirSync(path3.join(targetDir, "prisma"), { recursive: true });
   fs3.writeFileSync(path3.join(targetDir, ".gitignore"), loadTemplate("gitignore.ejs"));
   fs3.writeFileSync(path3.join(targetDir, "tsconfig.json"), loadTemplate("tsconfig.json.ejs"));
-  fs3.writeFileSync(path3.join(targetDir, ".env.example"), loadTemplate("env.example.ejs"));
+  fs3.writeFileSync(path3.join(targetDir, ".env.example"), renderTemplate("env.example.ejs", { database }));
   fs3.writeFileSync(path3.join(targetDir, "bot.json"), loadTemplate("bot.json.ejs"));
   fs3.writeFileSync(path3.join(targetDir, "src", "index.ts"), loadTemplate("index.ts.ejs"));
-  fs3.writeFileSync(path3.join(targetDir, "prisma", "schema.prisma"), loadTemplate("prisma-schema.prisma.ejs"));
+  fs3.writeFileSync(path3.join(targetDir, "prisma", "schema.prisma"), renderTemplate("prisma-schema.prisma.ejs", { database }));
   fs3.writeFileSync(path3.join(targetDir, "prisma.config.ts"), loadTemplate("prisma.config.ts.ejs"));
   fs3.mkdirSync(path3.join(targetDir, "src", "lib"), { recursive: true });
-  fs3.writeFileSync(path3.join(targetDir, "src", "lib", "database.ts"), loadTemplate("database.ts.ejs"));
+  fs3.writeFileSync(path3.join(targetDir, "src", "lib", "database.ts"), renderTemplate("database.ts.ejs", { database }));
   fs3.writeFileSync(path3.join(targetDir, "README.md"), renderTemplate("README.md.ejs", { botName }));
-  fs3.writeFileSync(path3.join(targetDir, "package.json"), renderTemplate("package.json.ejs", { botName, telemeisterVersion: getPackageVersion() }));
+  fs3.writeFileSync(path3.join(targetDir, "package.json"), renderTemplate("package.json.ejs", { botName, telemeisterVersion: getPackageVersion(), database }));
   process.chdir(targetDir);
   await stateSync();
   console.log("\n\u{1F4E6} Installing dependencies...");
@@ -1132,7 +1137,7 @@ async function createBot(botName) {
 `);
     process.exit(1);
   }
-  const tempDbUrl = "file:./dev.db";
+  const tempDbUrl = database === "mysql" ? "mysql://root:root@localhost:3306/temp_db" : "file:./dev.db";
   console.log("\u{1F5C4}\uFE0F  Generating Prisma client...");
   try {
     execSync(`${pmRun} db:generate`, {
@@ -1169,11 +1174,31 @@ async function createBot(botName) {
 var command = process.argv[2];
 var arg1 = process.argv[3];
 var arg2 = process.argv[4];
+var arg3 = process.argv[5];
+function parseCreateBotArgs() {
+  const botName = arg1;
+  let database;
+  for (let i = 3; i < process.argv.length; i++) {
+    const arg = process.argv[i];
+    if (arg.startsWith("--with-database=")) {
+      const value = arg.split("=")[1];
+      if (value === "mysql" || value === "sqlite") {
+        database = value;
+      } else {
+        console.error(`\u274C Error: Invalid database "${value}". Must be "mysql" or "sqlite"`);
+        process.exit(1);
+      }
+    }
+  }
+  return { botName, database };
+}
 async function runCLI() {
   switch (command) {
-    case "create-bot":
-      await createBot(arg1);
+    case "create-bot": {
+      const { botName, database } = parseCreateBotArgs();
+      await createBot(botName, database);
       break;
+    }
     case "state:add":
       await stateAdd(arg1);
       break;
@@ -1193,7 +1218,7 @@ async function runCLI() {
       console.error("\u274C Unknown command:", command);
       console.error("");
       console.error("Available commands:");
-      console.error("  create-bot <name>                    - Create a new bot project");
+      console.error("  create-bot <name> --with-database=sqlite|mysql  - Create a new bot project");
       console.error("  state:add <name>                     - Add a new state + create handler");
       console.error("  state:delete <name>                  - Delete a state (with safety checks)");
       console.error("  state:sync                           - Sync types and create missing handlers");

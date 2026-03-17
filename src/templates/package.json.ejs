@@ -23,9 +23,14 @@
     "state:transition:delete": "telemeister state:transition:delete"
   },
   "dependencies": {
+<% if (database === 'mysql') { -%>
+    "@prisma/adapter-mariadb": "^7.0.0",
+    "mariadb": "^3.4.0",
+<% } else { -%>
     "@prisma/adapter-better-sqlite3": "^7.0.0",
-    "@prisma/client": "^7.4.0",
     "better-sqlite3": "^12.6.2",
+<% } -%>
+    "@prisma/client": "^7.4.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "grammy": "^1.35.1",

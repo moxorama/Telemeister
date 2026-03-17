@@ -5,6 +5,7 @@ import type {
   ResponseHandler,
   StateHandlers,
   CommandHandler,
+  CommandResult,
 } from './types.js';
 
 /**
@@ -297,7 +298,7 @@ export class BotBuilder<TState extends BotState = BotState> {
   /**
    * Execute a command handler
    * @internal Called by the bot handlers
-   * @returns The next state to transition to, or void
+   * @returns CommandResult indicating if command was handled and next state
    *
    * Priority order:
    * 1. State-specific command handler (if exists)
@@ -308,21 +309,44 @@ export class BotBuilder<TState extends BotState = BotState> {
     command: string,
     currentState: TState,
     context: BotHandlerContext<TState>
-  ): Promise<TState | void> {
+  ): Promise<CommandResult<TState>> {
     const normalizedCommand = command.toLowerCase();
 
     // First check for state-specific command handler
     const stateHandlers = this.handlers.get(currentState);
     const stateCommandHandler = stateHandlers?.onCommand?.get(normalizedCommand);
     if (stateCommandHandler) {
-      return await stateCommandHandler(context);
+      const result = await stateCommandHandler(context);
+      return this.normalizeCommandResult(result);
     }
 
     // Fall back to global command handler
     const globalHandler = this.globalCommandHandlers.get(normalizedCommand);
     if (globalHandler) {
-      return await globalHandler(context);
+      const result = await globalHandler(context);
+      return this.normalizeCommandResult(result);
     }
+
+    // No handler found
+    return { handled: false };
+  }
+
+  /**
+   * Normalize command handler return value to CommandResult
+   */
+  private normalizeCommandResult(
+    result: CommandResult<TState> | TState | void
+  ): CommandResult<TState> {
+    if (result === undefined || result === null) {
+      // Handler returned void - treat as handled with no state change
+      return { handled: true };
+    }
+    if (typeof result === 'object' && 'handled' in result) {
+      // Already a CommandResult
+      return result as CommandResult<TState>;
+    }
+    // Handler returned a state string - treat as handled with state transition
+    return { handled: true, nextState: result as TState };
   }
 
   /**
@@ -359,4 +383,5 @@ export type {
   EnterHandler,
   ResponseHandler,
   CommandHandler,
+  CommandResult,
 } from './types.js';
