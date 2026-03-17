@@ -1125,7 +1125,11 @@ async function createBot(botName, database) {
   fs3.mkdirSync(path3.join(targetDir, "src", "lib"), { recursive: true });
   fs3.writeFileSync(path3.join(targetDir, "src", "lib", "database.ts"), renderTemplate("database.ts.ejs", { database }));
   fs3.writeFileSync(path3.join(targetDir, "README.md"), renderTemplate("README.md.ejs", { botName }));
-  fs3.writeFileSync(path3.join(targetDir, "package.json"), renderTemplate("package.json.ejs", { botName, telemeisterVersion: getPackageVersion(), database }));
+  fs3.writeFileSync(path3.join(targetDir, "package.json"), renderTemplate("package.json.ejs", {
+    botName,
+    telemeisterVersion: getPackageVersion(),
+    database
+  }));
   process.chdir(targetDir);
   await stateSync();
   console.log("\n\u{1F4E6} Installing dependencies...");
@@ -1174,7 +1178,6 @@ async function createBot(botName, database) {
 var command = process.argv[2];
 var arg1 = process.argv[3];
 var arg2 = process.argv[4];
-var arg3 = process.argv[5];
 function parseCreateBotArgs() {
   const botName = arg1;
   let database;
