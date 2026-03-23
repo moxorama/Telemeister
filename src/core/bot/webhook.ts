@@ -151,7 +151,8 @@ export async function startWebhookMode(config: WebhookConfig): Promise<void> {
   });
 
   // Set up webhook endpoint using Grammy's webhookCallback
-  app.use('/webhook', webhookCallback(bot, 'express'));
+  // Note: express.json() is required for webhookCallback to parse request body
+  app.use('/webhook', express.json(), webhookCallback(bot, 'express'));
 
   // Start server
   app.listen(port, async () => {

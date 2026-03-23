@@ -282,8 +282,28 @@ The `ctx` property provides full access to Grammy's Context API:
       inline_keyboard: [[{ text: 'Click', callback_data: 'click' }]]
     }
   });
+
+  // Reply with Markdown formatting
+  await context.reply("*Bold*, _italic_, `code`, [link](https://example.com)", {
+    parse_mode: "Markdown",
+  });
+
   // Optionally return a state for immediate transition
   return "anotherState";
+})
+
+// Called when user sends a bot command (e.g. /start, /help)
+.onCommand("start", async (context) => {
+  await context.reply("*Welcome!* Use /help to see available commands.", {
+    parse_mode: "Markdown",
+  });
+  return "welcome";
+})
+.onCommand("help", async (context) => {
+  await context.reply(
+    "*Available commands:*\n/start – Start the bot\n/help – Show this message",
+    { parse_mode: "Markdown" }
+  );
 })
 
 // Called when user sends any update (message, callback, poll, etc.)
@@ -300,18 +320,18 @@ The `ctx` property provides full access to Grammy's Context API:
     await context.reply("Button clicked!");
     return "clicked";
   }
-  
+
   // Photo message
   if (context.ctx.message?.photo) {
     await context.ctx.replyWithPhoto(context.ctx.message.photo[0].file_id);
   }
-  
+
   // Poll response
   if (context.ctx.pollAnswer) {
     const optionIds = context.ctx.pollAnswer.option_ids;
     await context.reply(`You selected options: ${optionIds.join(', ')}`);
   }
-  
+
   // Return void to stay in current state
 })
 ```
