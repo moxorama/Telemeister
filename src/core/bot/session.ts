@@ -6,10 +6,10 @@
  */
 
 import type { StorageAdapter } from 'grammy';
-import type { DatabaseAdapter, SessionData, SessionResult } from './types.js';
+import type { DatabaseAdapter, SessionData } from './types.js';
 
 // Re-export types for convenience
-export type { SessionData, SessionResult };
+export type { SessionData };
 
 /**
  * Session storage adapter for Grammy using injected database
@@ -69,7 +69,7 @@ export async function getOrCreateSession(
   username: string | undefined,
   chatId: string,
   database: DatabaseAdapter
-): Promise<SessionResult> {
+): Promise<SessionData> {
   const existing = await database.getUserByTelegramId(telegramId);
 
   if (existing) {
@@ -89,13 +89,10 @@ export async function getOrCreateSession(
     }
 
     return {
-      session: {
-        currentState: existing.currentState,
-        stateData,
-        userId: existing.id,
-        chatId: existing.chatId,
-      },
-      isNew: false,
+      currentState: existing.currentState,
+      stateData,
+      userId: existing.id,
+      chatId: existing.chatId,
     };
   }
 
@@ -109,12 +106,9 @@ export async function getOrCreateSession(
   });
 
   return {
-    session: {
-      currentState: 'idle',
-      stateData: {},
-      userId: newUser.id,
-      chatId: newUser.chatId,
-    },
-    isNew: true,
+    currentState: 'idle',
+    stateData: {},
+    userId: newUser.id,
+    chatId: newUser.chatId,
   };
 }

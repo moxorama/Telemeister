@@ -65,11 +65,3 @@ export interface SessionData {
   userId?: number;
   chatId?: string;
 }
-
-/**
- * Result from getOrCreateSession
- */
-export interface SessionResult {
-  session: SessionData;
-  isNew: boolean;
-}

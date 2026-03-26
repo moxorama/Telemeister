@@ -58,28 +58,8 @@ export function createBot(config: PollingConfig): Bot<BotContext> {
     }
 
     // Get or create user session
-    const { session: userSession, isNew } = await getOrCreateSession(
-      telegramIdStr,
-      username,
-      chatId,
-      database
-    );
+    const userSession = await getOrCreateSession(telegramIdStr, username, chatId, database);
     ctx.session = userSession;
-
-    // Call onEnter for initial state if this is a new session
-    if (isNew) {
-      const handlerContext = createHandlerContext(ctx, userSession, database);
-      const nextState = await appBuilder.executeOnEnter(userSession.currentState, handlerContext);
-
-      // Handle transition from onEnter
-      if (nextState && nextState !== userSession.currentState) {
-        await transitionToState(ctx, userSession, nextState, handlerContext, database);
-      } else {
-        // Save any state data changes
-        userSession.stateData =
-          handlerContext.getData<Record<string, unknown>>('__all') || userSession.stateData;
-      }
-    }
 
     return next();
   });
