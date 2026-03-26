@@ -1,6 +1,6 @@
 {
   "name": "telemeister",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "description": "TypeScript Telegram Bot Boilerplate with XState",
   "type": "module",
   "main": "./dist/core/index.js",
