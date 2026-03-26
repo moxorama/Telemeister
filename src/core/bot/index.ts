@@ -38,11 +38,8 @@ export {
 // Types
 export type { PollingConfig } from './polling.js';
 export type { WebhookConfig } from './webhook.js';
-export type { DatabaseAdapter, UserData, SessionData, SessionResult } from './types.js';
+export type { DatabaseAdapter, UserData, SessionData } from './types.js';
 
 // Session utilities
 export { SessionStorageAdapter, getOrCreateSession } from './session.js';
-export type {
-  SessionData as GrammySessionData,
-  SessionResult as GrammySessionResult,
-} from './session.js';
+export type { SessionData as GrammySessionData } from './session.js';
