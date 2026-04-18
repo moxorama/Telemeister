@@ -73,7 +73,9 @@ export function createBot(config: PollingConfig): Bot<BotContext> {
     // Create handler context compatible with existing handlers
     const handlerContext = createHandlerContext(ctx, session, database);
 
-    // Check for commands first
+    const allowed = await appBuilder.executeGuards(handlerContext);
+    if (!allowed) return;
+
     const text = ctx.message?.text?.trim();
     let nextState: string | void = undefined;
     let commandHandled = false;

@@ -18,6 +18,7 @@ export type {
   BotState,
   EnterHandler,
   ResponseHandler,
+  GuardHandler,
   StateHandlers,
 } from './types.js';
 

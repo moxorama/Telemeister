@@ -4,6 +4,7 @@ import type {
   EnterHandler,
   ResponseHandler,
   StateHandlers,
+  GuardHandler,
   CommandHandler,
   CommandResult,
 } from './types.js';
@@ -158,6 +159,7 @@ class MultiStateBuilder<TState extends BotState = BotState> {
 export class BotBuilder<TState extends BotState = BotState> {
   private handlers = new Map<TState, StateHandlers<TState>>();
   private globalCommandHandlers = new Map<string, CommandHandler<TState>>();
+  private guardHandlers: GuardHandler<TState>[] = [];
 
   /**
    * Register handlers for one or more states using chaining
@@ -213,6 +215,18 @@ export class BotBuilder<TState extends BotState = BotState> {
   onCommand(command: string, handler: CommandHandler<TState>): this {
     this.globalCommandHandlers.set(command.toLowerCase(), handler);
     return this;
+  }
+
+  guard(handler: GuardHandler<TState>): this {
+    this.guardHandlers.push(handler);
+    return this;
+  }
+
+  async executeGuards(context: BotHandlerContext<TState>): Promise<boolean> {
+    for (const guard of this.guardHandlers) {
+      if (!(await guard(context))) return false;
+    }
+    return true;
   }
 
   /**
@@ -382,6 +396,7 @@ export type {
   BotState,
   EnterHandler,
   ResponseHandler,
+  GuardHandler,
   CommandHandler,
   CommandResult,
 } from './types.js';

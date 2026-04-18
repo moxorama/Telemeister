@@ -31,6 +31,10 @@ export type CommandResult<TState extends BotState = BotState> =
   | { handled: true; nextState?: TState }
   | { handled: false };
 
+export type GuardHandler<TState extends BotState = BotState> = (
+  context: BotHandlerContext<TState>
+) => Promise<boolean> | boolean;
+
 export type CommandHandler<TState extends BotState = BotState> = (
   context: BotHandlerContext<TState>
 ) => Promise<CommandResult<TState> | TState | void>;
